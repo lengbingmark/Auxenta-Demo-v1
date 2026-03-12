@@ -60,72 +60,114 @@ export const CopilotBubble: React.FC<CopilotBubbleProps> = ({
       bg: 'bg-emerald-50',
       text: 'text-emerald-600',
       border: 'border-emerald-100'
+    },
+    analysis: {
+      header: 'from-indigo-600 to-violet-700',
+      bg: 'bg-indigo-50',
+      text: 'text-indigo-600',
+      border: 'border-indigo-100'
     }
   };
 
-  const style = typeStyles[content?.type || 'info'];
+  const style = typeStyles[model?.type || content?.type || 'info'];
 
-  // Use model if available, otherwise fallback to content
-  const displayTitle = model ? model.stageTitle : (content?.title || '量仔');
-  const displaySummary = model ? model.shortSummary : (content?.content || '');
-  const displayHighlight = model ? model.keyHighlight : '';
-  const displayActions = model ? model.actions : (content?.actions || []).map(id => {
+  // Use model if available, otherwise fallback to content, but prioritize notification content
+  const displayTitle = (content as any)?.isNotification ? (content?.title || '量仔') : (model ? model.stageTitle : (content?.title || '量仔'));
+  const displaySummary = (content as any)?.isNotification ? (content?.content || '') : (model ? model.shortSummary : (content?.content || ''));
+  const displayHighlight = (content as any)?.isNotification ? '' : (model ? model.keyHighlight : '');
+  const displayActions = (content as any)?.isNotification ? (content?.actions || []) : (model ? model.actions : (content?.actions || []).map(id => {
     const action = actionRegistry.get(id);
-    return action ? { label: action.label, event: id } : null;
-  }).filter(Boolean) as { label: string; event: string; primary?: boolean }[];
+    return action ? { label: action.label, event: id, payload: undefined } : null;
+  }).filter(Boolean) as { label: string; event: string; primary?: boolean; payload?: any }[]);
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       {visible && (
         <motion.div
+          key={displayTitle + displaySummary}
           initial={{ opacity: 0, y: 20, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ 
+            duration: 0.5, 
+            ease: [0.16, 1, 0.3, 1],
+            opacity: { duration: 0.3 }
+          }}
           style={{ bottom: position.bottom, right: position.right }}
-          className={`fixed z-40 w-[calc(100vw-48px)] ${content?.isLarge ? 'sm:w-[480px]' : 'sm:w-96'} bg-white/90 backdrop-blur-md border ${style.border} rounded-2xl shadow-xl overflow-hidden`}
+          className={`fixed z-40 w-[calc(100vw-48px)] ${content?.isLarge ? 'sm:w-[480px]' : 'sm:w-96'} bg-white/95 backdrop-blur-md border ${style.border} rounded-2xl shadow-2xl overflow-hidden`}
         >
           {/* Header */}
           <div 
-            className={`bg-gradient-to-r ${style.header} px-4 py-3 flex items-center justify-between cursor-pointer`}
+            className={`bg-gradient-to-r ${style.header} px-4 py-3 flex items-center justify-between cursor-pointer relative overflow-hidden`}
             onClick={onOpenDrawer}
           >
-            <div className="flex items-center gap-2 text-white">
+            {/* Animated background effect */}
+            <motion.div 
+              animate={{ 
+                x: ['-100%', '100%'],
+                opacity: [0, 0.1, 0]
+              }}
+              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-0 bg-white skew-x-12"
+            />
+
+            <div className="flex items-center gap-2 text-white relative z-10">
               {isTracking ? (
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                >
-                  <Sparkles size={18} />
-                </motion.div>
+                <div className="relative">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                  >
+                    <Sparkles size={18} />
+                  </motion.div>
+                  <motion.div
+                    animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
+                    transition={{ repeat: Infinity, duration: 2 }}
+                    className="absolute inset-0 bg-white rounded-full blur-md"
+                  />
+                </div>
               ) : (
-                <Bot size={18} />
+                <motion.div
+                  initial={{ rotate: -10 }}
+                  animate={{ rotate: 0 }}
+                >
+                  <Bot size={18} />
+                </motion.div>
               )}
-              <span className="font-medium text-sm">
-                {isTracking ? '正在分析...' : displayTitle}
+              <span className="font-bold text-sm tracking-tight">
+                {isTracking ? '量仔正在深度分析...' : displayTitle}
               </span>
             </div>
             <button 
               onClick={(e) => { e.stopPropagation(); onClose(); }} 
-              className="text-white/80 hover:text-white p-1"
+              className="text-white/80 hover:text-white p-1 relative z-10"
             >
               <X size={14} />
             </button>
           </div>
 
           {/* Content */}
-          <div className="p-4 cursor-pointer" onClick={onOpenDrawer}>
+          <div className="p-4 cursor-pointer group" onClick={onOpenDrawer}>
             <div className="flex items-start gap-3 mb-3">
-              <div className={`${style.bg} p-2 rounded-lg shrink-0`}>
+              <motion.div 
+                animate={isTracking ? { scale: [1, 1.1, 1] } : {}}
+                transition={{ repeat: Infinity, duration: 1 }}
+                className={`${style.bg} p-2 rounded-xl shrink-0 shadow-inner`}
+              >
                 <Sparkles size={16} className={style.text} />
-              </div>
+              </motion.div>
               <div className="min-w-0 flex-1">
                 {displayHighlight && (
-                  <div className={`text-[10px] font-bold uppercase tracking-wider ${style.text} mb-1`}>
+                  <motion.div 
+                    initial={{ opacity: 0, x: -5 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className={`text-[10px] font-black uppercase tracking-widest ${style.text} mb-1 flex items-center gap-1`}
+                  >
+                    <div className={`w-1 h-1 rounded-full ${style.text.replace('text-', 'bg-')} animate-pulse`} />
                     {displayHighlight}
-                  </div>
+                  </motion.div>
                 )}
-                <p className="text-xs text-gray-700 font-medium leading-relaxed break-words">
+                <p className="text-xs text-gray-700 font-bold leading-relaxed break-words">
                   {displaySummary}
                 </p>
               </div>
@@ -147,18 +189,18 @@ export const CopilotBubble: React.FC<CopilotBubbleProps> = ({
                   key={idx}
                   onClick={(e) => {
                     e.stopPropagation();
-                    actionRegistry.execute(action.event, context);
+                    actionRegistry.execute(action.event, context, action.payload);
                   }}
-                  className={`text-xs ${action.primary ? `bg-blue-600 text-white` : `${style.bg} ${style.text}`} px-2.5 py-1.5 rounded-lg font-medium hover:opacity-80 transition-all active:scale-95`}
+                  className={`text-xs ${action.primary ? `bg-blue-600 text-white shadow-lg shadow-blue-200` : `${style.bg} ${style.text} border ${style.border}`} px-3 py-2 rounded-xl font-bold hover:scale-105 transition-all active:scale-95`}
                 >
                   {action.label}
                 </button>
               ))}
               <button 
                 onClick={(e) => { e.stopPropagation(); onOpenDrawer(); }}
-                className="text-xs text-gray-400 flex items-center ml-auto hover:text-blue-600 font-medium"
+                className="text-xs text-gray-400 flex items-center ml-auto hover:text-blue-600 font-bold group-hover:translate-x-1 transition-transform"
               >
-                详情 <ChevronRight size={12} />
+                查看详情 <ChevronRight size={12} />
               </button>
             </div>
           </div>

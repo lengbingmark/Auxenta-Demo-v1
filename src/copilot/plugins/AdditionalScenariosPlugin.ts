@@ -80,7 +80,7 @@ export const PowerOpsPlugin: CopilotPlugin = {
     const actions: string[] = [];
 
     switch (run.stage) {
-      case 'data_collection':
+      case 'collect':
         sections.push({
           title: '数据采集详情',
           content: `已采集到 ${run.evidenceChain.metricsCards.length} 项运行指标。数据源：${run.dataSource.fileName || '实时API'}。`,
@@ -88,7 +88,7 @@ export const PowerOpsPlugin: CopilotPlugin = {
         });
         actions.push('DOWNLOAD_REPORT');
         break;
-      case 'diagnosis':
+      case 'diagnose':
         sections.push({
           title: '诊断深度分析',
           content: `AI 判定积灰概率 94%。主要依据：PR 值较历史同期下降 5.2%，且近期存在沙尘天气。`,
@@ -114,7 +114,7 @@ export const PowerOpsPlugin: CopilotPlugin = {
         }
         actions.push('E_VIEW_EVIDENCE');
         break;
-      case 'execution_monitor':
+      case 'execute':
         const task = run.execution.tasks[0];
         const resolvedRisk = run.execution.risks.find(r => r.status === 'closed' && r.resolvedAt && (Date.now() - r.resolvedAt < 30000));
         
@@ -145,7 +145,7 @@ export const PowerOpsPlugin: CopilotPlugin = {
         }
         actions.push('E_VIEW_TASKS');
         break;
-      case 'acceptance':
+      case 'accept':
         if (run.acceptance.status === 'accepted') {
           sections.push({
             title: '效益提升总结',

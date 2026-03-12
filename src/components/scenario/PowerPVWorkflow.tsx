@@ -147,6 +147,9 @@ export const PowerPVWorkflow: React.FC = () => {
         case 'E_VIEW_KNOWLEDGE':
           openLibrary('knowledge');
           break;
+        case 'E_RE_VERIFY':
+          handleDiagnosisResolve('re_verify');
+          break;
         case 'E_CONTINUE_EXEC':
           setIsProgressLogOpen(false);
           break;
@@ -721,6 +724,12 @@ export const PowerPVWorkflow: React.FC = () => {
                     >
                       保持当前AI诊断
                     </Button>
+                    <Button 
+                      className="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-xs h-10"
+                      onClick={() => handleDiagnosisResolve('re_verify')}
+                    >
+                      发起二次核验
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -1227,20 +1236,40 @@ export const PowerPVWorkflow: React.FC = () => {
           </div>
           <div className="col-span-5 space-y-4">
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">实时监测与风险</h3>
-            <Card className="p-6 bg-slate-900 text-white relative overflow-hidden h-48 flex flex-col justify-center items-center">
-              <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/pv-live/800/450')] bg-cover opacity-30" />
-              <Activity className="animate-pulse mb-2 text-blue-400" size={32} />
-              <span className="text-xs font-bold tracking-widest uppercase relative z-10">实时作业监测中</span>
-              <div className="mt-4 grid grid-cols-2 gap-8 relative z-10">
-                <div className="text-center">
-                  <div className="text-[10px] text-slate-400 uppercase">当前进度</div>
-                  <div className="text-xl font-black">{(run.execution.tasks || []).filter(t => t.status === 'completed').length}/{(run.execution.tasks || []).length}</div>
+            <Card className="p-6 bg-slate-950 text-white relative overflow-hidden h-52 flex flex-col justify-center items-center border border-white/10 shadow-2xl group">
+              <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/pv-live/800/450')] bg-cover opacity-20 group-hover:scale-110 transition-transform duration-700" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-slate-950/60" />
+              
+              <div className="relative z-10 flex flex-col items-center w-full">
+                <div className="w-14 h-14 rounded-full bg-blue-500/10 flex items-center justify-center mb-4 border border-blue-500/20 shadow-[0_0_20px_rgba(59,130,246,0.15)]">
+                  <Activity className="animate-pulse text-blue-400" size={28} />
                 </div>
-                <div className="text-center">
-                  <div className="text-[10px] text-slate-400 uppercase">风险等级</div>
-                  <div className={`text-xl font-black ${run.execution.risks.some(r => r.status === 'open') ? 'text-red-500' : 'text-emerald-500'}`}>{run.execution.risks.some(r => r.status === 'open') ? '高' : '低'}</div>
+                
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
+                  <span className="text-[11px] font-black tracking-[0.2em] uppercase text-blue-400">实时作业监测中</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-12 w-full max-w-[280px]">
+                  <div className="text-center space-y-1">
+                    <div className="text-[10px] text-white/40 font-bold uppercase tracking-widest">当前进度</div>
+                    <div className="text-3xl font-black tabular-nums tracking-tighter">
+                      {(run.execution.tasks || []).filter(t => t.status === 'completed').length}
+                      <span className="text-white/20 mx-1 text-xl">/</span>
+                      <span className="text-white/60 text-2xl">{(run.execution.tasks || []).length}</span>
+                    </div>
+                  </div>
+                  <div className="text-center space-y-1">
+                    <div className="text-[10px] text-white/40 font-bold uppercase tracking-widest">风险等级</div>
+                    <div className={`text-3xl font-black tracking-tighter ${run.execution.risks.some(r => r.status === 'open') ? 'text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]'}`}>
+                      {run.execution.risks.some(r => r.status === 'open') ? 'HIGH' : 'LOW'}
+                    </div>
+                  </div>
                 </div>
               </div>
+              
+              {/* Decorative elements */}
+              <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
             </Card>
             {(run.execution.risks || []).filter(r => r.status === 'open' || r.status === 'mitigating').map((r: any, i: number) => (
               <motion.div key={i} initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>

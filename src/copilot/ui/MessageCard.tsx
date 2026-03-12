@@ -124,10 +124,7 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message }) => {
               <button
                 key={idx}
                 onClick={() => {
-                  // Dispatch custom event for the scenario to handle
-                  window.dispatchEvent(new CustomEvent('powerops-action', { 
-                    detail: { event: action.event, label: action.label } 
-                  }));
+                  actionRegistry.execute(action.event, state.context, action.payload);
                 }}
                 className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold transition-all border ${
                   action.primary 

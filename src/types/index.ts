@@ -179,7 +179,67 @@ export type RunEvent =
   | 'DIAGNOSIS_RESOLVED'
   | 'KNOWLEDGE_DRAFT_UPDATED'
   | 'KNOWLEDGE_DRAFT_ARCHIVED'
-  | 'MITIGATION_EXECUTED';
+  | 'MITIGATION_EXECUTED'
+  | 'AI_DIAGNOSIS_COMPLETED'
+  | 'HUMAN_REVIEW_COMPLETED'
+  | 'TASK_STARTED'
+  | 'TASK_COMPLETED'
+  | 'ACCEPTANCE_COMPLETED';
+
+export interface SystemState {
+  run_id: string;
+  current_stage: string;
+  diagnosis_result: string;
+  task_status: string;
+  risk_status: string;
+  acceptance_status: string;
+  knowledge_status: string;
+}
+
+export interface DynamicTicket {
+  ticket_id: string;
+  run_id: string;
+  ticket_name: string;
+  ticket_type: string;
+  source: string;
+  station: string;
+  assignee: string;
+  priority: string;
+  status: string;
+  created_at: number;
+  expires_at: number;
+  description?: string;
+}
+
+export interface DynamicReport {
+  report_id: string;
+  run_id: string;
+  report_title: string;
+  report_type: string;
+  source: string;
+  station: string;
+  created_at: number;
+  expires_at: number;
+  file_size: string;
+  status: string;
+  summary: string;
+  preview_data: {
+    diagnosis_conclusion: string;
+    task_result: string;
+    risk_result: string;
+    acceptance_result: string;
+    knowledge_result: string;
+  };
+}
+
+export interface AgentAction {
+  action_id: string;
+  action_type: 'create_work_order' | 'schedule_inspection' | 'generate_report';
+  action_title: string;
+  action_description: string;
+  target_module: 'work_order_center' | 'report_center';
+  execution_status: 'pending' | 'executing' | 'completed' | 'failed';
+}
 
 export interface GlobalState {
   currentModule: string;
@@ -194,6 +254,7 @@ export interface GlobalState {
   selectedEntityId: string | null;
   highlightedNodeId: string | null;
   run: RunState;
+  system_state: SystemState;
   powerOpsState?: PowerOpsState;
   powerOpsWorkbenchStep?: PowerOpsWorkbenchStep;
   powerOpsSubModule?: PowerOpsSubModule;
@@ -246,6 +307,9 @@ export interface GlobalState {
     }[];
   };
   knowledgeLedger: any[];
+  dynamic_ticket_store: DynamicTicket[];
+  dynamic_report_store: DynamicReport[];
+  agent_actions: AgentAction[];
 }
 
 export type Action =
@@ -280,4 +344,12 @@ export type Action =
   | { type: 'SET_POWEROPS_WORKBENCH_STEP'; payload: PowerOpsWorkbenchStep }
   | { type: 'SET_POWEROPS_SUBMODULE'; payload: PowerOpsSubModule }
   | { type: 'UPDATE_POWEROPS_WORKBENCH_DATA'; payload: any }
-  | { type: 'ADD_POWEROPS_LEDGER_ENTRY'; payload: any };
+  | { type: 'ADD_POWEROPS_LEDGER_ENTRY'; payload: any }
+  | { type: 'UPSERT_DYNAMIC_TICKET'; payload: DynamicTicket }
+  | { type: 'UPDATE_DYNAMIC_TICKET_STATUS'; payload: { ticket_id: string; status: string } }
+  | { type: 'DELETE_DYNAMIC_TICKET'; payload: string }
+  | { type: 'CLEANUP_EXPIRED_TICKETS' }
+  | { type: 'UPSERT_DYNAMIC_REPORT'; payload: DynamicReport }
+  | { type: 'CLEANUP_EXPIRED_REPORTS' }
+  | { type: 'EXECUTE_AGENT_ACTION'; payload: string }
+  | { type: 'ADD_AGENT_ACTION'; payload: AgentAction };

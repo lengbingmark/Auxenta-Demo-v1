@@ -8,8 +8,10 @@ import { MessageCard } from './MessageCard';
 export const CopilotChat: React.FC = () => {
   const { state: copilotState, dispatch: copilotDispatch } = useCopilot();
   const { state: globalState, dispatch: globalDispatch } = useGlobalStore();
+  const { isExpanded } = copilotState;
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -17,6 +19,14 @@ export const CopilotChat: React.FC = () => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [copilotState.chatHistory, copilotState.isThinking]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+    }
+  }, [input]);
 
   // Listen for external input triggers
   useEffect(() => {
@@ -101,27 +111,28 @@ export const CopilotChat: React.FC = () => {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-white border-t border-gray-100">
+      <div className={`p-4 bg-white border-t border-gray-100 transition-all ${isExpanded ? 'px-8 py-6' : 'p-4'}`}>
         <div className="relative">
-          <input
-            type="text"
+          <textarea
+            ref={textareaRef}
+            rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="输入指令，如“催办任务”..."
-            className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+            className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all resize-none custom-scrollbar min-h-[46px]"
           />
           <button 
             onClick={() => handleSend()}
             disabled={!input.trim() || copilotState.isThinking}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="absolute right-2 bottom-2.5 p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Send size={18} />
           </button>
         </div>
         <div className="mt-2 flex items-center justify-center gap-1 text-[10px] text-gray-400">
           <Sparkles size={10} />
-          <span>AI 生成内容仅供参考</span>
+          <span>AI 生成内容仅供参考 · Shift + Enter 换行</span>
         </div>
       </div>
     </div>

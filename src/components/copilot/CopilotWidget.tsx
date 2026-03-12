@@ -72,9 +72,10 @@ export const CopilotWidget: React.FC = () => {
   const bubbleContent = state.notification ? {
     title: state.notification.title,
     content: state.notification.content,
-    actions: [],
+    actions: state.notification.actions || [],
     type: state.notification.type,
-    isLarge: state.notification.isLarge
+    isLarge: state.notification.isLarge,
+    isNotification: true
   } : currentPlugin?.renderBubble(state.context);
   
   const drawerContent = currentPlugin?.renderDrawer(state.context);

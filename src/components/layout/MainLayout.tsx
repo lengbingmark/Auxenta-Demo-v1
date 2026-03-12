@@ -4,11 +4,13 @@ import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { CopilotWidget } from '../copilot/CopilotWidget';
 import { CopilotProvider } from '../../copilot/core/CopilotContext';
+import { AgentBehaviorLayer } from '../../copilot/core/AgentBehaviorLayer';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 
 export const MainLayout: React.FC = () => {
   return (
     <CopilotProvider>
+      <AgentBehaviorLayer />
       <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">

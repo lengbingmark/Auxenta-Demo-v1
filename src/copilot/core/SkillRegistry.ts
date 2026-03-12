@@ -24,12 +24,138 @@ export interface Skill {
 }
 
 export const SkillRegistry: Skill[] = [
+  // Step3-G: Natural Language Agent Intents (High Priority)
+  {
+    name: 'query_power',
+    description: '查询发电量数据',
+    trigger: (input) => input.includes('发电量'),
+    execute: async (ctx, input, dispatch, globalState) => {
+      return {
+        success: true,
+        message: '今日发电量为 128.6MWh。',
+        suggestions: ['AnalyzeRisk', 'E_VIEW_DATA']
+      };
+    }
+  },
+  {
+    name: 'analyze_revenue',
+    description: '分析收益下降原因',
+    trigger: (input) => input.includes('收益下降') || input.includes('为什么收益下降'),
+    execute: async (ctx, input, dispatch, globalState) => {
+      return {
+        success: true,
+        message: '组件污染指数偏高，预计影响收益 -1.2%。',
+        suggestions: ['E_GENERATE_PLAN', 'E_CLICK_RISK']
+      };
+    }
+  },
+  {
+    name: 'create_work_order',
+    description: '安排巡检任务',
+    trigger: (input) => input.includes('安排巡检') || input.includes('创建工单'),
+    execute: async (ctx, input, dispatch, globalState) => {
+      // Call Agent Action Layer
+      window.dispatchEvent(new CustomEvent('copilot-agent-propose', { 
+        detail: { 
+          action_type: 'schedule_inspection', 
+          action_title: '调度清洗机器人', 
+          action_description: '区域B组件污染指数偏高，建议立即清洗。',
+          target_module: 'work_order_center'
+        } 
+      }));
+      return {
+        success: true,
+        message: '已创建巡检任务，可以前往工单中心查看。',
+        receipt: {
+          status: 'success',
+          title: '工单已创建',
+          details: '任务：区域B组件清洗 | 优先级：高',
+          nextStep: '前往工单中心跟踪进度'
+        }
+      };
+    }
+  },
+  {
+    name: 'generate_report',
+    description: '生成报告意图',
+    trigger: (input) => input.includes('生成报告') || input.includes('导出报告'),
+    execute: async (ctx, input, dispatch, globalState) => {
+      window.dispatchEvent(new CustomEvent('powerops-event', { detail: { event: 'E_EXPORT_REPORT', label: '导出报告' } }));
+      return {
+        success: true,
+        message: '正在为您生成分析报告，请稍候...',
+        receipt: {
+          status: 'info',
+          title: '报告生成中',
+          details: '类型：电力运维分析报告 | 格式：PDF',
+          nextStep: '生成完成后将自动下载'
+        }
+      };
+    },
+  },
+  {
+    name: 'view_risk',
+    description: '查看风险意图',
+    trigger: (input) => input.includes('风险情况') || input.includes('风险分析') || input.includes('有什么风险'),
+    execute: async (ctx, input, dispatch, globalState) => {
+      window.dispatchEvent(new CustomEvent('powerops-event', { detail: { event: 'E_CLICK_RISK', label: '查看风险洞察' } }));
+      return {
+        success: true,
+        message: '正在为您加载风险洞察面板。目前监测到区域B组件污染风险，建议关注。',
+        suggestions: ['E_CLICK_TRACE', 'E_GENERATE_PLAN']
+      };
+    }
+  },
+  {
+    name: 'view_system_status',
+    description: '查看系统状态意图',
+    trigger: (input) => input.includes('系统状态') || input.includes('设备健康'),
+    execute: async (ctx, input, dispatch, globalState) => {
+      return {
+        success: true,
+        message: '系统当前运行状态：正常。设备健康评分：88分。逆变器3号存在轻微过热风险。',
+        suggestions: ['E_EXPLAIN_RISK', 'E_VIEW_DATA']
+      };
+    }
+  },
   ...KnowledgeEngineSkills,
+  // v4: Advanced Analysis Skill
+  {
+    name: 'AnalyzeRisk',
+    description: '风险分析与方案对比',
+    trigger: (input) => input.includes('风险') || input.includes('分析') || input.includes('建议'),
+    execute: async (ctx, input, dispatch, globalState) => {
+      dispatch({ type: 'INCREMENT_SESSION_STAT', payload: 'suggestions' });
+      
+      return {
+        success: true,
+        thinking: '我正在扫描全系统的任务链。通过关键路径分析，我发现“企业资质审核”的延期已经开始挤压后续的“合同签署”环节。',
+        message: PersonaEngine.formatAnalysis(
+          '报告！当前项目存在进度滞后风险，且关键资源投入不足。',
+          [
+            '任务“企业资质审核”已逾期 3 天。',
+            '过往数据显示，类似延期会导致整体交付推迟 1 周。'
+          ],
+          '若不及时干预，可能影响本季度招商指标达成率。',
+          [
+            { label: '激进策略', desc: '立即启动一键催办，并调配临时资源支持。' },
+            { label: '稳健策略', desc: '先与负责人沟通延期原因，再调整后续计划。' }
+          ],
+          '量仔建议优先采用【方案 A (激进策略)】以快速纠偏。',
+          { 
+            ignoredCount: globalState?.adviceIgnoredCount || 0,
+            acceptedCount: globalState?.adviceAcceptedCount || 0
+          }
+        ),
+        suggestions: ['NudgeTaskAll', 'GenerateAdjustPlan']
+      };
+    }
+  },
   // PowerOps Script Skill
   {
     name: 'PowerOpsScript',
     description: '电力运维场景脚本引擎',
-    trigger: (input, context) => context.scenario === 'powerops',
+    trigger: (input, context) => context.scenario === 'powerops' && (input === '' || input === 'NEXT'),
     execute: async (ctx, ctxInput, dispatch, globalState) => {
       const isWorkbench = globalState?.powerOpsSubModule === 'WORKBENCH';
       const workbenchStep = globalState?.powerOpsWorkbenchStep;
@@ -197,39 +323,6 @@ export const SkillRegistry: Skill[] = [
       };
     }
   },
-  // v4: Advanced Analysis Skill
-  {
-    name: 'AnalyzeRisk',
-    description: '风险分析与方案对比',
-    trigger: (input) => input.includes('风险') || input.includes('分析') || input.includes('建议'),
-    execute: async (ctx, input, dispatch, globalState) => {
-      dispatch({ type: 'INCREMENT_SESSION_STAT', payload: 'suggestions' });
-      
-      return {
-        success: true,
-        thinking: '我正在扫描全系统的任务链。通过关键路径分析，我发现“企业资质审核”的延期已经开始挤压后续的“合同签署”环节。',
-        message: PersonaEngine.formatAnalysis(
-          '报告！当前项目存在进度滞后风险，且关键资源投入不足。',
-          [
-            '任务“企业资质审核”已逾期 3 天。',
-            '过往数据显示，类似延期会导致整体交付推迟 1 周。'
-          ],
-          '若不及时干预，可能影响本季度招商指标达成率。',
-          [
-            { label: '激进策略', desc: '立即启动一键催办，并调配临时资源支持。' },
-            { label: '稳健策略', desc: '先与负责人沟通延期原因，再调整后续计划。' }
-          ],
-          '量仔建议优先采用【方案 A (激进策略)】以快速纠偏。',
-          { 
-            ignoredCount: globalState?.adviceIgnoredCount || 0,
-            acceptedCount: globalState?.adviceAcceptedCount || 0
-          }
-        ),
-        suggestions: ['NudgeTaskAll', 'GenerateAdjustPlan']
-      };
-    }
-  },
-  // v4: Conflict Handling Skill (Simulated trigger)
   {
     name: 'HandleConflict',
     description: '处理决策冲突',

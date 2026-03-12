@@ -1,4 +1,5 @@
 import React from 'react';
+import { useGlobalStore } from '../../store/GlobalStore';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { 
@@ -67,11 +68,138 @@ const mockReports: Report[] = [
 ];
 
 export const ReportCenter: React.FC = () => {
+  const { state, dispatch: globalDispatch } = useGlobalStore();
+  const { system_state, dynamic_report_store, run } = state;
   const { dispatch } = useCopilot();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [activeCategory, setActiveCategory] = React.useState('全部');
   const [previewReport, setPreviewReport] = React.useState<Report | null>(null);
   const [activeActionMenu, setActiveActionMenu] = React.useState<string | null>(null);
+
+  // Cleanup expired reports on mount
+  React.useEffect(() => {
+    globalDispatch({ type: 'CLEANUP_EXPIRED_REPORTS' });
+  }, []);
+
+  // Automatic report generation logic
+  React.useEffect(() => {
+    if (!system_state || !run) return;
+
+    const isClosed = 
+      system_state.acceptance_status === 'passed' || 
+      system_state.current_stage === 'knowledge' || 
+      system_state.knowledge_status === 'stored';
+
+    if (isClosed) {
+      const reportId = `REP-${system_state.run_id}`;
+      
+      // Check if report already exists in dynamic store to avoid duplicates
+      const exists = dynamic_report_store.some(r => r.run_id === system_state.run_id);
+      
+      if (!exists) {
+        const now = Date.now();
+        const stationName = run.station?.name || 'XX光伏电站';
+        
+        globalDispatch({
+          type: 'UPSERT_DYNAMIC_REPORT',
+          payload: {
+            report_id: reportId,
+            run_id: system_state.run_id,
+            report_title: `${stationName} 运维复盘报告`,
+            report_type: '运维报告',
+            source: 'AI自动生成',
+            station: stationName,
+            created_at: now,
+            expires_at: now + 24 * 60 * 60 * 1000,
+            file_size: '2.4MB',
+            status: 'Ready',
+            summary: `本报告针对 ${stationName} 的运维任务进行复盘。诊断结论为：${run.evidenceChain.diagnosis.finalConclusion || run.evidenceChain.diagnosis.aiConclusion || '组件积灰导致PR下降'}。`,
+            preview_data: {
+              diagnosis_conclusion: run.evidenceChain.diagnosis.finalConclusion || run.evidenceChain.diagnosis.aiConclusion || '组件积灰导致PR下降',
+              task_result: system_state.task_status === 'completed' ? '已完成组件清洗与PR复测' : '任务执行中',
+              risk_result: system_state.risk_status === 'warning' ? '执行中出现设备异常，已完成缓解处理' : '未检测到显著运行风险',
+              acceptance_result: system_state.acceptance_status === 'passed' ? `验收通过，PR恢复至${run.acceptance.metrics?.pr || '82.1%'}` : '验收进行中',
+              knowledge_result: system_state.knowledge_status === 'stored' ? '本次案例已沉淀为运维经验知识' : '知识沉淀处理中'
+            }
+          }
+        });
+      }
+    }
+  }, [system_state?.acceptance_status, system_state?.current_stage, system_state?.knowledge_status, system_state?.run_id, run, dynamic_report_store]);
+
+  const allReports = React.useMemo(() => {
+    const now = Date.now();
+    const activeDynamic = (dynamic_report_store || []).filter(r => r.expires_at > now);
+    
+    const dynamicAsReports: Report[] = activeDynamic.map(r => ({
+      id: r.report_id,
+      name: r.report_title,
+      type: r.report_type as any,
+      generatedAt: new Date(r.created_at).toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-').slice(0, 16),
+      size: r.file_size,
+      status: r.status as any,
+      method: r.source as any,
+      station: r.station,
+      summary: r.summary,
+      metrics: {
+        generation: r.preview_data.acceptance_result,
+        health: 95
+      },
+      risks: r.preview_data.risk_result,
+      aiAdvice: r.preview_data.knowledge_result,
+      // Custom fields for preview
+      previewData: r.preview_data
+    }));
+
+    // Combine with mock reports, avoiding duplicates (by ID)
+    const combined = [...dynamicAsReports];
+    mockReports.forEach(mr => {
+      if (!combined.find(cr => cr.id === mr.id)) {
+        combined.push(mr);
+      }
+    });
+
+    return combined;
+  }, [dynamic_report_store]);
+
+  const filteredReports = allReports.filter(report => {
+    const matchesSearch = report.name.includes(searchTerm);
+    const matchesCategory = activeCategory === '全部' || report.type === activeCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  const kpis = React.useMemo(() => {
+    const total = allReports.length;
+    const latest = allReports[0]; // Assuming sorted by creation time
+    
+    // Calculate storage: mock reports are around 23MB total, dynamic are 2.4MB each
+    const mockSize = 23.3; // MB
+    const dynamicSize = (dynamic_report_store || []).length * 2.4;
+    const totalSizeGB = ((mockSize + dynamicSize) / 1024).toFixed(2);
+    const usagePercent = Math.min(Math.round(((mockSize + dynamicSize) / 3072) * 100), 100); // 3GB total limit
+
+    return {
+      total,
+      latest,
+      totalSizeGB,
+      usagePercent
+    };
+  }, [allReports, dynamic_report_store]);
+
+  const handlePreview = (report: Report) => {
+    setPreviewReport(report);
+  };
+
+  const handleDownload = (report: Report) => {
+    const fileName = report.id.startsWith('REP-RUN') 
+      ? `report_${report.id.replace('REP-', '')}_operation_review.pdf`
+      : (report.name.toLowerCase().includes('日报') ? 'report_20240309_daily.pdf' : 'report_download.pdf');
+    
+    toast.success(`${fileName}\n下载完成`, {
+      duration: 3000,
+      icon: '📥'
+    });
+  };
 
   React.useEffect(() => {
     dispatch({
@@ -79,10 +207,10 @@ export const ReportCenter: React.FC = () => {
       payload: {
         id: `report-summary-${Date.now()}`,
         role: 'assistant',
-        content: `本月已生成24份报告。
-
+        content: `当前共有${kpis.total}份报告。
+        
 最近生成：
-2024年3月9日运维日报。
+${kpis.latest?.name || '2024年3月9日运维日报'}。
 
 如果需要，我可以为您生成
 设备运行分析报告。`,
@@ -90,25 +218,7 @@ export const ReportCenter: React.FC = () => {
         type: 'text'
       }
     });
-  }, []);
-
-  const filteredReports = mockReports.filter(report => {
-    const matchesSearch = report.name.includes(searchTerm);
-    const matchesCategory = activeCategory === '全部' || report.type === activeCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  const handlePreview = (report: Report) => {
-    setPreviewReport(report);
-  };
-
-  const handleDownload = (name: string) => {
-    const fileName = name.toLowerCase().includes('日报') ? 'report_20240309_daily.pdf' : 'report_download.pdf';
-    toast.success(`${fileName}\n下载完成`, {
-      duration: 3000,
-      icon: '📥'
-    });
-  };
+  }, [kpis.total, kpis.latest?.id]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -127,7 +237,7 @@ export const ReportCenter: React.FC = () => {
             </div>
             <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">本月生成报告</div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-4xl font-black text-slate-900 tracking-tight">24</span>
+              <span className="text-4xl font-black text-slate-900 tracking-tight">{kpis.total}</span>
               <span className="text-sm font-bold text-slate-400">份</span>
             </div>
             <div className="mt-4 text-[10px] font-bold text-slate-400 flex items-center gap-1">
@@ -143,13 +253,13 @@ export const ReportCenter: React.FC = () => {
         
         <Card className="p-6 border-none shadow-sm bg-white hover:shadow-md transition-shadow">
           <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-4">报告存储空间</div>
-          <div className="text-3xl font-black text-slate-900 mb-2">1.2 <span className="text-sm font-bold text-slate-500">GB</span></div>
+          <div className="text-3xl font-black text-slate-900 mb-2">{kpis.totalSizeGB} <span className="text-sm font-bold text-slate-500">GB</span></div>
           <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-            <div className="h-full bg-blue-500 rounded-full" style={{ width: '45%' }} />
+            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${kpis.usagePercent}%` }} />
           </div>
           <div className="flex justify-between mt-2 text-[10px] font-bold text-slate-400">
-            <span>已使用 45%</span>
-            <span>剩余 1.8 GB</span>
+            <span>已使用 {kpis.usagePercent}%</span>
+            <span>剩余 {(3 - parseFloat(kpis.totalSizeGB)).toFixed(2)} GB</span>
           </div>
         </Card>
 
@@ -162,14 +272,16 @@ export const ReportCenter: React.FC = () => {
               </div>
             </div>
             <div className="text-lg font-black text-slate-900 leading-tight mb-3 group-hover:text-emerald-600 transition-colors">
-              2024年3月9日 运维日报
+              {kpis.latest?.name || '2024年3月9日 运维日报'}
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs text-emerald-600 font-bold">
                 <CheckCircle2 size={14} />
                 <span>生成成功</span>
               </div>
-              <span className="text-[10px] font-bold text-slate-400">10分钟前</span>
+              <span className="text-[10px] font-bold text-slate-400">
+                {kpis.latest?.id.startsWith('REP-RUN') ? '刚刚' : '10分钟前'}
+              </span>
             </div>
           </div>
           {/* Subtle background decoration */}
@@ -295,7 +407,7 @@ export const ReportCenter: React.FC = () => {
                 <Button 
                   size="sm" 
                   className="flex-1 text-xs h-8 gap-1.5"
-                  onClick={() => handleDownload(report.name)}
+                  onClick={() => handleDownload(report)}
                 >
                   <Download size={14} /> 下载
                 </Button>
@@ -358,6 +470,35 @@ export const ReportCenter: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Dynamic Preview Data for AI Reports */}
+                {(previewReport as any).previewData && (
+                  <div className="space-y-4">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">详细复盘数据</div>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <span className="text-xs text-slate-500">诊断结论</span>
+                        <span className="text-xs font-bold text-slate-900">{(previewReport as any).previewData.diagnosis_conclusion}</span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <span className="text-xs text-slate-500">任务执行</span>
+                        <span className="text-xs font-bold text-slate-900">{(previewReport as any).previewData.task_result}</span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <span className="text-xs text-slate-500">风险处理</span>
+                        <span className="text-xs font-bold text-slate-900">{(previewReport as any).previewData.risk_result}</span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <span className="text-xs text-slate-500">验收结果</span>
+                        <span className="text-xs font-bold text-slate-900">{(previewReport as any).previewData.acceptance_result}</span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <span className="text-xs text-slate-500">知识沉淀</span>
+                        <span className="text-xs font-bold text-slate-900">{(previewReport as any).previewData.knowledge_result}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">关键运行指标</div>
                   <div className="grid grid-cols-2 gap-4">
@@ -397,7 +538,7 @@ export const ReportCenter: React.FC = () => {
                 <Button 
                   className="px-8 gap-2"
                   onClick={() => {
-                    handleDownload(previewReport.name);
+                    handleDownload(previewReport);
                     setPreviewReport(null);
                   }}
                 >

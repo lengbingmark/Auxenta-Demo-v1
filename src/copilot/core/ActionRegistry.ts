@@ -242,6 +242,7 @@ const powerOpsEvents = [
   { id: 'E_REV_FORECAST', label: '收益预测' },
   { id: 'NAV_WORKBENCH', label: '进入工作台' },
   { id: 'E_GENERATE_PLAN', label: '生成预案' },
+  { id: 'NAV_TO_MODULE', label: '跳转模块' },
 ];
 
 powerOpsEvents.forEach(evt => {
@@ -249,9 +250,9 @@ powerOpsEvents.forEach(evt => {
     id: evt.id,
     label: evt.label,
     icon: Zap,
-    handler: () => {
+    handler: (_ctx, payload) => {
       window.dispatchEvent(new CustomEvent('powerops-event', { 
-        detail: { event: evt.id, label: evt.label } 
+        detail: { event: evt.id, label: evt.label, payload } 
       }));
       
       // Feedback logic
@@ -261,10 +262,39 @@ powerOpsEvents.forEach(evt => {
       if (evt.id === 'E_DOWNLOAD_REPORT') feedback = '已触发报告下载';
       if (evt.id === 'E_VIEW_CASES') feedback = '已打开案例归档弹窗';
       if (evt.id === 'E_VIEW_KNOWLEDGE') feedback = '已打开知识入库弹窗';
+      if (evt.id === 'E_PREVIEW_REPORT') feedback = '正在加载最新报告预览...';
+      if (evt.id === 'NAV_TO_MODULE') feedback = `正在跳转至${payload?.moduleName || '目标模块'}...`;
 
       window.dispatchEvent(new CustomEvent('copilot-notification', {
         detail: { title: '操作反馈', content: feedback, type: 'success' }
       }));
     }
   });
+});
+
+actionRegistry.register({
+  id: 'AGENT_ACTION_PROPOSE',
+  label: '行动建议',
+  icon: Zap,
+  handler: (_ctx, payload) => {
+    window.dispatchEvent(new CustomEvent('copilot-agent-propose', { detail: payload }));
+  }
+});
+
+actionRegistry.register({
+  id: 'EXECUTE_AGENT_ACTION',
+  label: '立即执行',
+  icon: Zap,
+  handler: (_ctx, payload) => {
+    window.dispatchEvent(new CustomEvent('copilot-agent-execute', { detail: payload }));
+  }
+});
+
+actionRegistry.register({
+  id: 'VIEW_AGENT_ACTION_PLAN',
+  label: '查看方案',
+  icon: Eye,
+  handler: (_ctx, payload) => {
+    window.dispatchEvent(new CustomEvent('copilot-agent-view-plan', { detail: payload }));
+  }
 });

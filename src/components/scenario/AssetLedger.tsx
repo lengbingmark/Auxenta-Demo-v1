@@ -60,7 +60,8 @@ const mockAssets: Asset[] = [
 ];
 
 export const AssetLedger: React.FC = () => {
-  const { state: { system_state } } = useGlobalStore();
+  const { state } = useGlobalStore();
+  const system_state = state?.system_state;
   const [filterStatus, setFilterStatus] = React.useState<string>('All');
   const [filterStation, setFilterStation] = React.useState<string>('All');
   const [filterType, setFilterType] = React.useState<string>('All');
@@ -78,20 +79,24 @@ export const AssetLedger: React.FC = () => {
         let status = asset.status;
         let score = asset.healthScore;
 
-        // Apply rules based on system_state
-        if (system_state.diagnosis_result === 'shading') {
-          status = '异常设备';
+        // Apply rules based on system_state (Step 2-B Integration)
+        // 1. AI诊断完成 (diagnosis_result = shading)
+        if (system_state?.diagnosis_result === 'shading') {
+          status = 'Error'; // Displayed as '异常'
+          score = 45;
+        }
+        // 2. 任务执行开始 (task_status = running)
+        if (system_state?.task_status === 'running') {
+          status = '维修处理中';
+          score = 70;
+        }
+        // 3. 风险触发 (risk_status = warning)
+        if (system_state?.risk_status === 'warning') {
+          status = '风险监测';
           score = 55;
         }
-        if (system_state.risk_status === 'warning') {
-          status = '风险监测';
-          score = 65;
-        }
-        if (system_state.task_status === 'running') {
-          status = '维修处理中';
-          score = 75;
-        }
-        if (system_state.task_status === 'completed') {
+        // 4. 任务完成 (task_status = completed)
+        if (system_state?.task_status === 'completed') {
           status = '已恢复';
           score = 92;
         }
@@ -112,7 +117,7 @@ export const AssetLedger: React.FC = () => {
       asset.status === filterStatus || 
       (filterStatus === 'Normal' && asset.status === '已恢复') ||
       (filterStatus === 'Warning' && (asset.status === '维修处理中' || asset.status === '风险监测')) ||
-      (filterStatus === 'Error' && asset.status === '异常设备');
+      (filterStatus === 'Error' && (asset.status === '异常设备' || asset.status === 'Error'));
     const matchesStation = filterStation === 'All' || asset.stationName === filterStation;
     const matchesType = filterType === 'All' || asset.deviceType === filterType;
     const matchesScore = filterScore === 'All' || (
@@ -133,7 +138,7 @@ export const AssetLedger: React.FC = () => {
 
   const kpis = React.useMemo(() => {
     const baseAbnormal = 5;
-    const isAsset001Abnormal = assets.find(a => a.id === 'ASSET-001')?.status === '异常设备';
+    const isAsset001Abnormal = assets.find(a => a.id === 'ASSET-001')?.status === 'Error';
     const displayAbnormal = isAsset001Abnormal ? baseAbnormal + 1 : baseAbnormal;
 
     return [

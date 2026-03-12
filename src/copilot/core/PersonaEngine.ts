@@ -12,21 +12,22 @@ export interface ChatMessage {
     nextStep?: string;
   };
   suggestions?: string[]; // Action IDs
-  actions?: { label: string; event: string; primary?: boolean }[];
+  actions?: { label: string; event: string; primary?: boolean; payload?: any }[];
 }
 
 export interface BubbleModel {
   stageTitle: string;
   shortSummary: string;
   keyHighlight: string;
-  actions: { label: string; event: string; primary?: boolean }[];
+  actions: { label: string; event: string; primary?: boolean; payload?: any }[];
+  type?: 'info' | 'warning' | 'success' | 'analysis';
 }
 
 export interface DrawerSection {
   title: string;
   content: string;
   type?: 'info' | 'warning' | 'success' | 'analysis';
-  action?: { label: string; event: string };
+  action?: { label: string; event: string; payload?: any };
 }
 
 export interface DrawerModel {
@@ -56,15 +57,18 @@ export const PersonaEngine = {
     if (userIntent === 'USER_ACTION_E_CLICK_GEN') {
       return {
         bubble: {
-          stageTitle: "发电量深度分析",
-          shortSummary: "量仔正在为您穿透发电量数据。今日增幅主要得益于区域A的逆变器效率优化，但区域B仍有小幅波动。",
-          keyHighlight: "区域A表现优异",
-          actions: [{ label: '查看详情', event: 'E_VIEW_DATA', primary: true }]
+          stageTitle: "今日发电量分析",
+          shortSummary: "今日实时发电量 128.6 MWh，同比昨日提升 2.3%。当前全站出力平稳，建议关注区域B南侧阵列的PR值波动。",
+          keyHighlight: "发电量：128.6 MWh",
+          actions: [{ label: '查看详情', event: 'E_VIEW_DATA', primary: true }],
+          type: 'analysis'
         },
         drawer: {
           sections: [
-            { title: "分析思考过程", content: "我首先对比了各区域的 PR 值，发现区域 A 在清洗后效率提升了 4.5%。随后我调取了逆变器实时效率，确认区域 B 的波动并非设备故障，而是由于局部遮挡导致的。作为您的助理，我建议继续保持当前的运维节奏。", type: 'analysis' },
-            { title: "发电量溯源", content: "通过对组串级数据的对比，我发现区域A的清洗工作显著提升了光电转换效率。建议将此经验推广至全站。", type: 'info' }
+            { title: "量仔重点提示", content: "今日实时发电量 128.6 MWh，同比昨日提升 2.3%。当前全站出力平稳，建议关注区域B南侧阵列的PR值波动。", type: 'info' },
+            { title: "分析过程", content: "通过对比历史同期数据与实时辐照度，结合场站气象站反馈，对各阵列发电效率进行实时拟合分析。", type: 'analysis' },
+            { title: "分析结果", content: "区域B受局部云影影响，瞬时功率下降5%，预计14:00后恢复正常。全站整体PR值维持在82.5%的高位。", type: 'success' },
+            { title: "重点关注建议", content: "建议持续关注区域B的PR值恢复情况，并在下午15:00进行二次效能复测，确保云影消散后出力恢复至预期水平。", type: 'info' }
           ]
         }
       };
@@ -73,15 +77,98 @@ export const PersonaEngine = {
     if (userIntent === 'USER_ACTION_E_CLICK_REV') {
       return {
         bubble: {
-          stageTitle: "收益波动分析",
-          shortSummary: "量仔已为您对比了电价波动曲线，目前的调度策略已实现收益最大化。今日收益保持稳健。",
-          keyHighlight: "收益率：1.5% ↑",
-          actions: [{ label: '收益预测', event: 'E_REV_FORECAST', primary: true }]
+          stageTitle: "今日发电收益分析",
+          shortSummary: "今日预计收益 ¥98,240。当前处于高电价时段，建议保持满负荷运行，最大化售电收益。",
+          keyHighlight: "预计收益：¥98,240",
+          actions: [{ label: '收益详情', event: 'E_REV_FORECAST', primary: true }],
+          type: 'success'
         },
         drawer: {
           sections: [
-            { title: "分析思考过程", content: "我分析了今日峰谷电价的时段分布，并结合了储能系统的充放电状态。目前的策略在峰值电价时段实现了满额输出。我预测下周电价将有小幅上调，建议提前储备电量。", type: 'analysis' },
-            { title: "收益构成分析", content: "当前收益主要由基础电费和峰谷差价补贴构成。我预测下周电价将有小幅上调，建议提前储备电量。", type: 'info' }
+            { title: "量仔重点提示", content: "今日预计收益 ¥98,240。当前处于高电价时段，建议保持满负荷运行，最大化售电收益。", type: 'info' },
+            { title: "分析过程", content: "结合分时电价政策、实时上网电量以及系统预测出力，进行多维度的结算模拟与收益优化计算。", type: 'analysis' },
+            { title: "分析结果", content: "峰值时段贡献了65%的收益，系统运行策略已自动优化以匹配高电价窗口，预计今日总收益将超过计划目标2.1%。", type: 'success' },
+            { title: "重点关注建议", content: "当前处于峰值电价窗口，建议推迟非必要的厂用电负荷，确保上网电量最大化，以获取更高的结算收益。", type: 'success' }
+          ]
+        }
+      };
+    }
+
+    if (userIntent === 'USER_ACTION_E_CLICK_MONTHLY') {
+      return {
+        bubble: {
+          stageTitle: "本月累计收益分析",
+          shortSummary: "本月累计收益 ¥234.0w，较计划目标偏差 -1.8%。主要受上周连阴雨影响，建议通过优化清洗周期挽回部分损失。",
+          keyHighlight: "月收益偏差：-1.8%",
+          actions: [{ label: '偏差分析', event: 'E_CLICK_RISK', primary: true }],
+          type: 'warning'
+        },
+        drawer: {
+          sections: [
+            { title: "量仔重点提示", content: "本月累计收益 ¥234.0w，较计划目标偏差 -1.8%。主要受上周连阴雨影响，建议通过优化清洗周期挽回部分损失。", type: 'info' },
+            { title: "分析过程", content: "对比月度预算目标与实际结算数据，识别出天气因素导致的电量缺口，并结合未来天气预报进行收益补偿测算。", type: 'analysis' },
+            { title: "分析结果", content: "预计通过提升下半月设备可用率，可将最终偏差缩小至 -0.5% 以内。", type: 'success' },
+            { title: "重点关注建议", content: "建议在下周晴好天气启动全站深度清洗，预计可提升全站PR值1.2%，有效对冲前期天气因素带来的收益损失。", type: 'warning' }
+          ]
+        }
+      };
+    }
+
+    if (userIntent === 'USER_ACTION_E_CLICK_HEALTH') {
+      return {
+        bubble: {
+          stageTitle: "设备健康结构分析",
+          shortSummary: "设备健康度 88 分。逆变器3号风扇转速偏低，存在过热风险。建议在今日运维窗口进行现场核查。",
+          keyHighlight: "健康评分：88分",
+          actions: [{ label: '查看设备', event: 'E_VIEW_TASKS', payload: { ticketId: 'WO-20240309-001' }, primary: true }],
+          type: 'warning'
+        },
+        drawer: {
+          sections: [
+            { title: "量仔重点提示", content: "设备健康度 88 分。逆变器3号风扇转速偏低，存在过热风险。建议在今日运维窗口进行现场核查。", type: 'info' },
+            { title: "分析过程", content: "基于设备运行日志、红外热成像数据以及历史故障模型，进行多维特征融合诊断与寿命预测。", type: 'analysis' },
+            { title: "分析结果", content: "3号逆变器内部温度较平均水平高出8℃，判定为滤网积尘引起的散热不畅。", type: 'warning' },
+            { title: "重点关注建议", content: "建议立即下发“滤网清洗”工单，并在今日下午16:00前完成处理，以规避高温时段可能触发的设备降额运行风险。", type: 'warning' }
+          ]
+        }
+      };
+    }
+
+    if (userIntent === 'USER_ACTION_E_CLICK_ENV') {
+      return {
+        bubble: {
+          stageTitle: "环境影响结构分析",
+          shortSummary: "环境影响评分 82 分。区域B污染遮挡指数已达“中等”预警。建议启动机器人清洗，预计提升PR值 1.2%。",
+          keyHighlight: "环境评分：82分",
+          actions: [{ label: '启动清洗', event: 'E_GENERATE_PLAN', primary: true }],
+          type: 'warning'
+        },
+        drawer: {
+          sections: [
+            { title: "量仔重点提示", content: "环境影响评分 82 分。区域B污染遮挡指数已达“中等”预警。建议启动机器人清洗，预计提升PR值 1.2%。", type: 'info' },
+            { title: "分析过程", content: "利用场站气象站数据与组件表面传感器反馈，计算灰尘沉降速率，并结合发电量损失进行ROI评估。", type: 'analysis' },
+            { title: "分析结果", content: "区域B积灰严重，导致光照吸收率下降4.5%，清洗后的投资回报比（ROI）为 3.2。", type: 'success' },
+            { title: "重点关注建议", content: "建议立即执行机器人自动化清洗作业。根据ROI评估，当前清洗动作具备极高的经济效益，预计可挽回日均约1200kWh的电量损失。", type: 'success' }
+          ]
+        }
+      };
+    }
+
+    if (userIntent === 'USER_ACTION_E_CLICK_OPS') {
+      return {
+        bubble: {
+          stageTitle: "运维执行结构分析",
+          shortSummary: "运维执行评分 90 分。巡检完成率达 96%，但清洗周期已偏差 3 天。建议调整排班，优先处理高污染区域。",
+          keyHighlight: "执行评分：90分",
+          actions: [{ label: '调整排班', event: 'E_VIEW_TASKS', payload: { ticketId: 'WO-20240309-002' }, primary: true }],
+          type: 'analysis'
+        },
+        drawer: {
+          sections: [
+            { title: "量仔重点提示", content: "运维执行评分 90 分。巡检完成率达 96%，但清洗周期已偏差 3 天。建议调整排班，优先处理高污染区域。", type: 'info' },
+            { title: "分析过程", content: "追踪工单流转效率、现场作业反馈以及资源利用率，评估运维资源的分配合理性与执行及时性。", type: 'analysis' },
+            { title: "分析结果", content: "清洗资源在区域A过度冗余，建议向区域B动态调配，以平衡全站发电效率。", type: 'success' },
+            { title: "重点关注建议", content: "建议优化当前的运维排班策略，将清洗机器人优先调配至区域B，预计可提升全站PR值约0.5%。", type: 'info' }
           ]
         }
       };
@@ -93,12 +180,48 @@ export const PersonaEngine = {
           stageTitle: "今日待办简报",
           shortSummary: "量仔已经为您梳理好了今日的重点工作。目前有 2 项逾期任务需优先处理，另外建议关注区域 B 的风险趋势。",
           keyHighlight: "待办：3 项",
-          actions: [{ label: '查看待办', event: 'E_VIEW_TASKS', primary: true }]
+          actions: [{ label: '查看待办', event: 'E_VIEW_TASKS', payload: { ticketId: 'WO-20240309-001' }, primary: true }]
         },
         drawer: {
           sections: [
             { title: "分析思考过程", content: "我从任务系统和风险监测模块提取了所有未闭环项，并根据“影响收益”和“时间紧急度”进行了加权排序。逾期任务直接关联到本周的 PR 达标率，因此被我列为最高优先级。", type: 'analysis' },
             { title: "今日待办工作", content: "1. 审核电力运维工作台中的“积灰诊断”冲突。\n2. 处理 2 项逾期任务：逆变器-05 离线排查、区域 C 杂草清理。\n3. 导出上周的招商运营复盘报告。", type: 'info' }
+          ]
+        }
+      };
+    }
+
+    if (context?.page_context === 'home') {
+      return {
+        bubble: {
+          stageTitle: "系统运行状态概览",
+          shortSummary: "我正在监测当前电站运行状态，目前发现3个潜在风险，建议查看“风险洞察与异常溯源”。",
+          keyHighlight: "风险数量：3",
+          actions: [
+            { label: '调度清洗机器人', event: 'AGENT_ACTION_PROPOSE', payload: { 
+              action_type: 'schedule_inspection', 
+              action_title: '调度清洗机器人', 
+              action_description: '区域B组件污染指数偏高，建议立即清洗。',
+              target_module: 'work_order_center'
+            }, primary: true },
+            { label: '查看风险', event: 'E_CLICK_RISK' }
+          ],
+          type: 'warning'
+        },
+        drawer: {
+          sections: [
+            { title: "系统运行状态概览", content: "我正在监测当前电站运行状态，目前发现3个潜在风险，建议查看“风险洞察与异常溯源”。", type: 'warning' },
+            { title: "风险详情", content: "1. 区域B组件污染指数偏高\n2. 逆变器3号温度异常\n3. 组件热斑异常点3处", type: 'info' },
+            { title: "行动建议", content: "建议立即调度清洗机器人处理区域B的积灰问题，以恢复发电效率。", type: 'success', action: { 
+              label: '调度清洗机器人', 
+              event: 'AGENT_ACTION_PROPOSE', 
+              payload: { 
+                action_type: 'schedule_inspection', 
+                action_title: '调度清洗机器人', 
+                action_description: '区域B组件污染指数偏高，建议立即清洗。',
+                target_module: 'work_order_center'
+              } 
+            } }
           ]
         }
       };
@@ -181,6 +304,7 @@ export const PersonaEngine = {
     const userIntent = context?.userIntent;
     const uavStatus = evidenceChain.verification.uav.status;
     const diagnosisStatus = evidenceChain.diagnosis.status;
+    const pageContext = context?.page_context;
 
     const uavProgress = evidenceChain.verification.uav.progress || 0;
     const isUavFinished = uavStatus === 'completed' || uavProgress >= 100;
@@ -254,12 +378,30 @@ export const PersonaEngine = {
           stageTitle: "风险趋势预测",
           shortSummary: "量仔监测到区域 B 的积灰风险正在上升。如果不及时处理，预计未来 48 小时内 PR 值将下降 1.5%。",
           keyHighlight: "风险等级：中",
-          actions: [{ label: '生成预案', event: 'E_GENERATE_PLAN', primary: true }]
+          actions: [
+            { label: '调度清洗机器人', event: 'AGENT_ACTION_PROPOSE', payload: { 
+              action_type: 'schedule_inspection', 
+              action_title: '调度清洗机器人', 
+              action_description: '区域B组件污染指数偏高，建议立即清洗。',
+              target_module: 'work_order_center'
+            }, primary: true },
+            { label: '生成预案', event: 'E_GENERATE_PLAN' }
+          ]
         },
         drawer: {
           sections: [
             { title: "分析思考过程", content: "我结合了气象局的沙尘预警 and 现场传感器的积灰厚度监测，通过回归模型推演了效率衰减曲线。目前区域 B 的遮挡率已接近临界点，建议在降雨前完成清洗。", type: 'analysis' },
-            { title: "风险预测详情", content: "• **受影响区域**：区域 B (组串 12-45)\n• **预计损失**：约 1200 kWh/日\n• **建议动作**：启动自动化清洗机器人-02。", type: 'warning' }
+            { title: "风险预测详情", content: "• **受影响区域**：区域 B (组串 12-45)\n• **预计损失**：约 1200 kWh/日\n• **建议动作**：启动自动化清洗机器人-02。", type: 'warning' },
+            { title: "行动建议", content: "建议立即调度清洗机器人 handle 区域B的积灰问题。", type: 'success', action: { 
+              label: '立即调度', 
+              event: 'AGENT_ACTION_PROPOSE', 
+              payload: { 
+                action_type: 'schedule_inspection', 
+                action_title: '调度清洗机器人', 
+                action_description: '区域B组件污染指数偏高，建议立即清洗。',
+                target_module: 'work_order_center'
+              } 
+            } }
           ]
         }
       };
@@ -304,7 +446,7 @@ export const PersonaEngine = {
           stageTitle: "任务已下发",
           shortSummary: "指令已送达执行终端！我将全程为您盯着进度，一旦有异常我会立即提醒您。作为您的助理，我会实时学习任务执行中的偏差并自动优化路径。",
           keyHighlight: "实时监控与学习中",
-          actions: [{ label: '查看进度', event: 'E_VIEW_TASKS', primary: true }]
+          actions: [{ label: '查看进度', event: 'E_VIEW_TASKS', payload: { ticketId: 'WO-20240309-001' }, primary: true }]
         },
         drawer: {
           sections: [
@@ -321,7 +463,7 @@ export const PersonaEngine = {
           stageTitle: "任务已派发",
           shortSummary: "所有任务已成功派发至责任人。我将实时监控他们的在线状态 and 反馈频率，确保执行无死角。",
           keyHighlight: "执行链条已激活",
-          actions: [{ label: '查看进度', event: 'E_VIEW_TASKS', primary: true }]
+          actions: [{ label: '查看进度', event: 'E_VIEW_TASKS', payload: { ticketId: 'WO-20240309-001' }, primary: true }]
         },
         drawer: {
           sections: [
@@ -340,7 +482,7 @@ export const PersonaEngine = {
             ? `注意！我从反馈中识别到了 ${riskCount} 项潜在风险。我已经为您准备好了应对方案。`
             : "收到最新的进度反馈。我正在分析反馈内容中的潜在风险，并实时更新整体进度曲线。",
           keyHighlight: riskCount > 0 ? "⚠️ 发现执行风险" : "进度实时同步中",
-          actions: [{ label: riskCount > 0 ? '处理风险' : '查看详情', event: riskCount > 0 ? 'E_VIEW_RISKS' : 'E_VIEW_TASKS', primary: true }]
+          actions: [{ label: riskCount > 0 ? '处理风险' : '查看详情', event: riskCount > 0 ? 'E_VIEW_RISKS' : 'E_VIEW_TASKS', payload: { ticketId: 'WO-20240309-001' }, primary: true }]
         },
         drawer: {
           sections: [
@@ -412,7 +554,7 @@ export const PersonaEngine = {
           stageTitle: "缓解方案已确认",
           shortSummary: "收到！二次优化方案已下发。我将重点监控受影响区域的指标恢复情况，确保风险尽快闭环。",
           keyHighlight: "风险对冲中",
-          actions: [{ label: '查看进度', event: 'E_VIEW_TASKS', primary: true }]
+          actions: [{ label: '查看进度', event: 'E_VIEW_TASKS', payload: { ticketId: 'WO-20240309-001' }, primary: true }]
         },
         drawer: {
           sections: [
@@ -556,6 +698,78 @@ export const PersonaEngine = {
               content: "AI 识别为树荫遮挡，人工识别为积灰遮挡。分歧核心在于遮挡物的物理属性。无人机核验将提供决定性证据。", 
               type: 'warning' 
             }
+          ]
+        }
+      };
+    }
+
+    // Step3-A: Module Awareness logic for specific pages
+    if (pageContext === 'asset_ledger') {
+      return {
+        bubble: {
+          stageTitle: "资产健康状态",
+          shortSummary: "当前资产健康评分为88，检测到1个异常设备，建议查看设备详情或维护记录。",
+          keyHighlight: "健康评分：88",
+          actions: [{ label: '查看详情', event: 'E_EXPLAIN_RISK', primary: true }],
+          type: 'info'
+        },
+        drawer: {
+          sections: [
+            { title: "资产健康状态", content: "当前资产健康评分为88，检测到1个异常设备，建议查看设备详情或维护记录。", type: 'info' },
+            { title: "异常设备", content: "设备：逆变器-03\n异常：温度偏高\n建议：检查滤网积灰情况", type: 'warning' }
+          ]
+        }
+      };
+    }
+
+    if (pageContext === 'work_order_center') {
+      return {
+        bubble: {
+          stageTitle: "工单执行状态",
+          shortSummary: "当前共有3个执行中的工单，其中1个存在潜在风险，需要我帮你查看详情吗？",
+          keyHighlight: "执行中：3",
+          actions: [{ label: '查看详情', event: 'E_VIEW_TASKS', primary: true }],
+          type: 'warning'
+        },
+        drawer: {
+          sections: [
+            { title: "工单执行状态", content: "当前共有3个执行中的工单，其中1个存在潜在风险，需要我帮你查看详情吗？", type: 'warning' },
+            { title: "风险工单", content: "工单：逆变器-05 离线排查\n风险：备件短缺可能导致延期", type: 'info' }
+          ]
+        }
+      };
+    }
+
+    if (pageContext === 'report_center') {
+      return {
+        bubble: {
+          stageTitle: "报告中心助手",
+          shortSummary: "我已为您准备好最新的运维分析报告草稿。您可以直接预览或一键生成正式版。",
+          keyHighlight: "报告就绪",
+          actions: [
+            { label: '预览报告', event: 'E_PREVIEW_REPORT', primary: true },
+            { label: '生成分析报告', event: 'AGENT_ACTION_PROPOSE', payload: { 
+              action_type: 'generate_report', 
+              action_title: '生成 AI 分析报告', 
+              action_description: '基于近期风险分析及运维数据，自动生成深度分析报告。',
+              target_module: 'report_center'
+            } }
+          ]
+        },
+        drawer: {
+          sections: [
+            { title: "报告中心助手", content: "我已为您准备好最新的运维分析报告草稿。您可以直接预览或一键生成正式版。", type: 'info' },
+            { title: "报告内容概览", content: "报告包含：\n1. 场站 PR 值趋势分析\n2. 核心设备运行状态评估\n3. 风险闭环情况统计", type: 'analysis' },
+            { title: "行动建议", content: "建议生成正式的 AI 分析报告，用于月度运维复盘。", type: 'success', action: { 
+              label: '生成报告', 
+              event: 'AGENT_ACTION_PROPOSE', 
+              payload: { 
+                action_type: 'generate_report', 
+                action_title: '生成 AI 分析报告', 
+                action_description: '基于近期风险分析及运维数据，自动生成深度分析报告。',
+                target_module: 'report_center'
+              } 
+            } }
           ]
         }
       };
@@ -974,7 +1188,20 @@ export const PersonaEngine = {
       return `我正在分析当前模块的潜在风险。目前看来，一切都在可控范围内。`;
     }
 
-    return `收到您的指令：“${input}”。作为您的助理，我正努力理解并学习如何更好地为您服务。您可以尝试问我“当前有什么风险？”或“生成一份分析报告”。`;
+    // Step3-G: Enhanced Fallback logic
+    if (input.includes('发电') || input.includes('收益')) {
+      return `今日发电量为 128.6MWh，收益稳定。您可以问我“为什么收益下降”来获取深度分析。`;
+    }
+
+    if (input.includes('报告') || input.includes('总结')) {
+      return `我可以为您生成分析报告或阶段总结。请问您需要导出 PDF 报告吗？`;
+    }
+
+    if (input.includes('任务') || input.includes('工单') || input.includes('巡检')) {
+      return `我可以帮您创建工单或安排巡检。例如，您可以说“帮我安排巡检”。`;
+    }
+
+    return `收到您的指令：“${input}”。作为您的助理，我正努力理解并学习如何更好地为您服务。您可以尝试问我“今天发电量是多少？”、“为什么收益下降？”或“帮我安排巡检”。`;
   },
 
   // v5: Conversational Summary for Drawer Insights
@@ -1021,9 +1248,47 @@ export const PersonaEngine = {
   },
 
   // Get welcome message
-  getWelcomeMessage: (module: string, scenario: string | null, role?: string | null, subModule?: string, stage?: string): { content: string; suggestions?: string[] } => {
+  getWelcomeMessage: (module: string, scenario: string | null, role?: string | null, subModule?: string, stage?: string, pageContext?: string, globalState?: any): { content: string; suggestions?: string[]; actions?: { label: string; event: string; primary?: boolean; payload?: any }[] } => {
     const persona = PersonaEngine.getPersona(module, scenario);
     const roleName = role === 'MANAGER' ? '主管' : '管理员';
+
+    // Step3-A: Module Awareness Logic
+    if (pageContext === 'home') {
+      let content = "欢迎回来，我正在持续监控系统运行状态。";
+      const riskCount = globalState?.run?.execution?.risks?.filter((r: any) => r.status === 'open').length || 0;
+      if (riskCount > 0) {
+        content += `\n\n刚发现 ${riskCount} 个潜在风险，需要我为您分析吗？`;
+      }
+      return {
+        content,
+        suggestions: ['E_CLICK_RISK', 'GENERATE_BRIEF']
+      };
+    }
+    if (pageContext === 'asset_ledger') {
+      return {
+        content: `资产台账已更新，当前健康评分为 88。我注意到 1 个异常设备，建议您关注一下。`,
+        suggestions: ['E_EXPLAIN_RISK']
+      };
+    }
+    if (pageContext === 'work_order_center') {
+      // Find a relevant ticket if possible
+      const riskTicket = globalState?.dynamic_ticket_store?.find((t: any) => t.status === 'Risk' || t.priority === 'P0');
+      const targetId = riskTicket?.ticket_id || 'WO-20240309-001';
+
+      return {
+        content: `当前共有 ${(globalState?.dynamic_ticket_store?.length || 0) + 12} 个执行中的工单，其中 1 个高优先级任务需要关注，要我帮您查看详情吗？`,
+        actions: [
+          { label: '查看工单', event: 'E_VIEW_TASKS', payload: { ticketId: targetId }, primary: true }
+        ]
+      };
+    }
+    if (pageContext === 'report_center') {
+      return {
+        content: `我已经为你生成了一份新的运维报告，要不要现在预览一下？`,
+        suggestions: ['E_PREVIEW_REPORT']
+      };
+    }
+    // workbench keeps original behavior, which is handled below
 
     if (scenario === 'powerops') {
       switch (stage) {

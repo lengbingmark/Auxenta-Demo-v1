@@ -62,6 +62,15 @@ const initialState: GlobalState = {
     },
     auditLog: []
   },
+  system_state: {
+    run_id: 'RUN-' + Date.now(),
+    current_stage: 'collect',
+    diagnosis_result: 'pending',
+    task_status: 'pending',
+    risk_status: 'normal',
+    acceptance_status: 'pending',
+    knowledge_status: 'pending'
+  },
   // New Mock State for Agentic Feedback
   tasks: MOCK_TASKS,
   recentActions: [], // Log of actions performed
@@ -82,6 +91,9 @@ const initialState: GlobalState = {
   powerOpsClosedLoopLedger: [],
   // Knowledge Ledger
   knowledgeLedger: [],
+  dynamic_ticket_store: [],
+  dynamic_report_store: [],
+  agent_actions: [],
   // Knowledge Engine Initial State
   knowledgeEngine: {
     selectedBases: ['public', 'industry'],
@@ -220,6 +232,7 @@ function globalReducer(state: GlobalState, action: Action): GlobalState {
   try {
     switch (action.type) {
       case 'SET_ROUTE_CONTEXT':
+        window.dispatchEvent(new CustomEvent('ModuleChangeEvent', { detail: action.payload }));
         return {
           ...state,
           currentModule: action.payload.module,
@@ -436,12 +449,17 @@ function globalReducer(state: GlobalState, action: Action): GlobalState {
           newStage = data.stage;
           break;
         case 'RESET_RUN':
+          const newRunId = 'RUN-' + Date.now();
           return {
             ...state,
             run: {
               ...initialState.run,
-              runId: 'RUN-' + Date.now(),
+              runId: newRunId,
               auditLog: [{ ts: Date.now(), eventType: 'RESET_RUN', message: '重置流程，开始新任务' }]
+            },
+            system_state: {
+              ...initialState.system_state,
+              run_id: newRunId
             }
           };
         case 'DATA_UPLOADED':
@@ -523,6 +541,7 @@ function globalReducer(state: GlobalState, action: Action): GlobalState {
           newStage = 'execute';
           break;
         case 'TASKS_CREATED':
+          window.dispatchEvent(new CustomEvent('TicketCreatedEvent', { detail: data }));
           newRunState.execution.tasks = data;
           break;
         case 'TASK_OWNER_CONFIRMED':
@@ -561,6 +580,7 @@ function globalReducer(state: GlobalState, action: Action): GlobalState {
         case 'RISK_TRIGGERED':
           // Avoid duplicate risks for the same reason within the same cycle
           if (!newRunState.execution.risks.some(r => r.triggerReason === data.triggerReason && r.status !== 'closed')) {
+            window.dispatchEvent(new CustomEvent('RiskDetectedEvent', { detail: data }));
             newRunState.execution.risks = [{ ...data, mitigationCycle: newRunState.execution.mitigationCycle }, ...newRunState.execution.risks];
           }
           break;
@@ -752,6 +772,7 @@ function globalReducer(state: GlobalState, action: Action): GlobalState {
           // Just logging
           break;
         case 'REPORT_GENERATED':
+          window.dispatchEvent(new CustomEvent('ReportGeneratedEvent', { detail: data }));
           newRunState.outputs.report = { ...newRunState.outputs.report, status: 'ready', ...data };
           break;
         case 'CASE_SAVED':
@@ -793,12 +814,63 @@ function globalReducer(state: GlobalState, action: Action): GlobalState {
         newRunState.furthestStage = newStage;
       }
 
+      // Update system_state based on events
+      let newSystemState = { ...state.system_state };
+      switch (event) {
+        case 'DATA_UPLOADED':
+          newSystemState.current_stage = 'diagnosis';
+          break;
+        case 'ANALYSIS_COMPLETED':
+        case 'AI_DIAGNOSIS_COMPLETED':
+          newSystemState.diagnosis_result = 'shading';
+          newSystemState.current_stage = 'execution';
+          break;
+        case 'DIAG_CONFLICT':
+          newSystemState.diagnosis_result = 'conflict';
+          newSystemState.current_stage = 'diagnosis';
+          break;
+        case 'DIAGNOSIS_RESOLVED':
+          newSystemState.diagnosis_result = (data.resolution === 'use_human' || data.resolution === 're_verify') ? 'dust' : 'shading';
+          newSystemState.current_stage = 'execution';
+          break;
+        case 'TASK_OWNER_CONFIRMED':
+        case 'HUMAN_REVIEW_COMPLETED':
+          newSystemState.task_status = 'confirmed';
+          break;
+        case 'TASK_ASSIGNED':
+        case 'TASK_STARTED':
+          newSystemState.task_status = 'running';
+          break;
+        case 'RISK_TRIGGERED':
+          newSystemState.risk_status = 'warning';
+          break;
+        case 'PROGRESS_UPDATED':
+          if (data.progress === 100) {
+            newSystemState.task_status = 'completed';
+            newSystemState.current_stage = 'acceptance';
+          }
+          break;
+        case 'TASK_COMPLETED':
+          newSystemState.task_status = 'completed';
+          newSystemState.current_stage = 'acceptance';
+          break;
+        case 'ACCEPTANCE_PASSED':
+        case 'ACCEPTANCE_COMPLETED':
+          newSystemState.acceptance_status = 'passed';
+          break;
+        case 'KNOWLEDGE_SAVED':
+          newSystemState.knowledge_status = 'stored';
+          newSystemState.current_stage = 'closed';
+          break;
+      }
+
       return {
         ...state,
         run: {
           ...newRunState,
           stage: newStage
-        }
+        },
+        system_state: newSystemState
       };
     }
     case 'SET_POWEROPS_STATE':
@@ -826,6 +898,129 @@ function globalReducer(state: GlobalState, action: Action): GlobalState {
         ...state,
         powerOpsClosedLoopLedger: [action.payload, ...(state.powerOpsClosedLoopLedger || [])]
       };
+    case 'UPSERT_DYNAMIC_TICKET': {
+      const existsIndex = state.dynamic_ticket_store.findIndex(t => t.run_id === action.payload.run_id);
+      let newStore;
+      if (existsIndex !== -1) {
+        newStore = [...state.dynamic_ticket_store];
+        const existing = newStore[existsIndex];
+        newStore[existsIndex] = {
+          ...action.payload,
+          created_at: existing.created_at,
+          expires_at: existing.expires_at
+        };
+      } else {
+        window.dispatchEvent(new CustomEvent('TicketCreatedEvent', { detail: action.payload }));
+        newStore = [action.payload, ...state.dynamic_ticket_store];
+      }
+      return { ...state, dynamic_ticket_store: newStore };
+    }
+    case 'UPDATE_DYNAMIC_TICKET_STATUS': {
+      const { ticket_id, status } = action.payload;
+      if (status === 'Completed') {
+        window.dispatchEvent(new CustomEvent('TicketCompletedEvent', { detail: { ticket_id } }));
+      }
+      const newStore = state.dynamic_ticket_store.map(t => 
+        t.ticket_id === ticket_id ? { ...t, status } : t
+      );
+      return { ...state, dynamic_ticket_store: newStore };
+    }
+    case 'DELETE_DYNAMIC_TICKET': {
+      const ticket_id = action.payload;
+      const newStore = state.dynamic_ticket_store.filter(t => t.ticket_id !== ticket_id);
+      return { ...state, dynamic_ticket_store: newStore };
+    }
+    case 'CLEANUP_EXPIRED_TICKETS': {
+      const now = Date.now();
+      const newStore = state.dynamic_ticket_store.filter(t => t.expires_at > now);
+      if (newStore.length === state.dynamic_ticket_store.length) return state;
+      return { ...state, dynamic_ticket_store: newStore };
+    }
+    case 'UPSERT_DYNAMIC_REPORT': {
+      const existsIndex = state.dynamic_report_store.findIndex(r => r.run_id === action.payload.run_id);
+      let newStore;
+      if (existsIndex !== -1) {
+        newStore = [...state.dynamic_report_store];
+        const existing = newStore[existsIndex];
+        newStore[existsIndex] = {
+          ...action.payload,
+          created_at: existing.created_at,
+          expires_at: existing.expires_at
+        };
+      } else {
+        window.dispatchEvent(new CustomEvent('ReportGeneratedEvent', { detail: action.payload }));
+        newStore = [action.payload, ...state.dynamic_report_store];
+      }
+      return { ...state, dynamic_report_store: newStore };
+    }
+    case 'CLEANUP_EXPIRED_REPORTS': {
+      const now = Date.now();
+      const newStore = state.dynamic_report_store.filter(r => r.expires_at > now);
+      if (newStore.length === state.dynamic_report_store.length) return state;
+      return { ...state, dynamic_report_store: newStore };
+    }
+    case 'ADD_AGENT_ACTION':
+      return {
+        ...state,
+        agent_actions: [...state.agent_actions, action.payload]
+      };
+    case 'EXECUTE_AGENT_ACTION': {
+      const actionId = action.payload;
+      const agentAction = state.agent_actions.find(a => a.action_id === actionId);
+      if (!agentAction) return state;
+
+      const updatedActions = state.agent_actions.map(a => 
+        a.action_id === actionId ? { ...a, execution_status: 'completed' as const } : a
+      );
+
+      let newState = { ...state, agent_actions: updatedActions };
+
+      if (agentAction.action_type === 'create_work_order' || agentAction.action_type === 'schedule_inspection') {
+        const newTicket = {
+          ticket_id: 'TKT-' + Date.now(),
+          run_id: state.run.runId,
+          ticket_name: agentAction.action_title,
+          ticket_type: agentAction.action_type === 'create_work_order' ? 'AI建议' : '自动调度',
+          source: 'AI建议',
+          station: state.run.station.name,
+          assignee: agentAction.action_type === 'schedule_inspection' ? '清洗机器人' : '待指派',
+          priority: 'P1',
+          status: '待执行',
+          created_at: Date.now(),
+          expires_at: Date.now() + 86400000 * 7,
+          description: agentAction.action_description
+        };
+        window.dispatchEvent(new CustomEvent('TicketCreatedEvent', { detail: newTicket }));
+        newState.dynamic_ticket_store = [newTicket, ...state.dynamic_ticket_store];
+        newState.system_state = { ...newState.system_state, task_status: 'AI_TASK_CREATED' };
+      } else if (agentAction.action_type === 'generate_report') {
+        const newReport = {
+          report_id: 'REP-' + Date.now(),
+          run_id: state.run.runId,
+          report_title: agentAction.action_title,
+          report_type: 'AI分析报告',
+          source: '风险分析',
+          station: state.run.station.name,
+          created_at: Date.now(),
+          expires_at: Date.now() + 86400000 * 30,
+          file_size: '1.2 MB',
+          status: 'ready',
+          summary: agentAction.action_description,
+          preview_data: {
+            diagnosis_conclusion: 'AI 自动生成',
+            task_result: '正常',
+            risk_result: '已识别',
+            acceptance_result: '待评估',
+            knowledge_result: '待沉淀'
+          }
+        };
+        window.dispatchEvent(new CustomEvent('ReportGeneratedEvent', { detail: newReport }));
+        newState.dynamic_report_store = [newReport, ...state.dynamic_report_store];
+        newState.system_state = { ...newState.system_state, knowledge_status: 'AI_REPORT_GENERATED' };
+      }
+
+      return newState;
+    }
     default:
       return state;
     }
@@ -856,6 +1051,17 @@ const getInitialState = (): GlobalState => {
     const savedModule = localStorage.getItem('auxenta_module');
     const moduleData = savedModule ? JSON.parse(savedModule) : null;
 
+    const savedDynamicTickets = localStorage.getItem('auxenta_dynamic_tickets');
+    let dynamicTicketsData = savedDynamicTickets ? JSON.parse(savedDynamicTickets) : [];
+
+    const savedDynamicReports = localStorage.getItem('auxenta_dynamic_reports');
+    let dynamicReportsData = savedDynamicReports ? JSON.parse(savedDynamicReports) : [];
+
+    // Cleanup expired tickets and reports on load
+    const now = Date.now();
+    dynamicTicketsData = dynamicTicketsData.filter((t: any) => t.expires_at > now);
+    dynamicReportsData = dynamicReportsData.filter((r: any) => r.expires_at > now);
+
     return {
       ...initialState,
       isInitialized: true,
@@ -864,6 +1070,8 @@ const getInitialState = (): GlobalState => {
       currentModule: moduleData?.currentModule || initialState.currentModule,
       currentSubModule: moduleData?.currentSubModule || initialState.currentSubModule,
       powerOpsSubModule: moduleData?.powerOpsSubModule || initialState.powerOpsSubModule,
+      dynamic_ticket_store: dynamicTicketsData,
+      dynamic_report_store: dynamicReportsData,
       run: runData ? { 
         ...initialState.run, 
         ...runData,
@@ -877,6 +1085,8 @@ const getInitialState = (): GlobalState => {
     localStorage.removeItem('auxenta_auth');
     localStorage.removeItem('auxenta_run');
     localStorage.removeItem('auxenta_module');
+    localStorage.removeItem('auxenta_dynamic_tickets');
+    localStorage.removeItem('auxenta_dynamic_reports');
     return { ...initialState, isInitialized: true };
   }
 };
@@ -899,10 +1109,15 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
       currentSubModule: state.currentSubModule,
       powerOpsSubModule: state.powerOpsSubModule
     }));
-  }, [state.isAuthenticated, state.currentUserRole, state.run, state.currentModule, state.currentSubModule, state.powerOpsSubModule]);
+
+    localStorage.setItem('auxenta_dynamic_tickets', JSON.stringify(state.dynamic_ticket_store));
+    localStorage.setItem('auxenta_dynamic_reports', JSON.stringify(state.dynamic_report_store));
+  }, [state.isAuthenticated, state.currentUserRole, state.run, state.currentModule, state.currentSubModule, state.powerOpsSubModule, state.dynamic_ticket_store, state.dynamic_report_store]);
+
+  const value = React.useMemo(() => ({ state, dispatch }), [state, dispatch]);
 
   return (
-    <GlobalContext.Provider value={{ state, dispatch }}>
+    <GlobalContext.Provider value={value}>
       {children}
     </GlobalContext.Provider>
   );

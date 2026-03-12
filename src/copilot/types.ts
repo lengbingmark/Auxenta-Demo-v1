@@ -12,6 +12,7 @@ export interface WorkContext {
   lastAction?: string;
   run?: RunState;
   system_state?: SystemState;
+  page_context?: 'home' | 'asset_ledger' | 'work_order_center' | 'report_center' | 'workbench';
 }
 
 export interface CopilotActionDefinition {
