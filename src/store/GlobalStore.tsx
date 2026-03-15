@@ -86,6 +86,8 @@ const initialState: GlobalState = {
   powerOpsState: 'S0_OVERVIEW',
   powerOpsWorkbenchStep: 'COLLECTION',
   powerOpsSubModule: 'HOME',
+  lowAltitudeSubModule: 'SITUATION_OVERVIEW',
+  flyDataAuthStatus: 'valid',
   isInitialized: false,
   powerOpsWorkbenchData: {},
   powerOpsClosedLoopLedger: [],
@@ -423,8 +425,10 @@ function globalReducer(state: GlobalState, action: Action): GlobalState {
           conflictLogs: [action.payload, ...state.knowledgeEngine.conflictLogs]
         }
       };
+    case 'SET_FLYDATA_AUTH_STATUS':
+      return { ...state, flyDataAuthStatus: action.payload };
     case 'DISPATCH_RUN_EVENT': {
-      const { event, data, details, silent } = action.payload;
+      const { event, data, details, silent } = action.payload as any;
       
       // De-duplication logic: check if the last log is the same as the new one
       const lastLog = state.run.auditLog[0];
@@ -730,9 +734,39 @@ function globalReducer(state: GlobalState, action: Action): GlobalState {
               }
             ];
           }
-
+          window.dispatchEvent(new CustomEvent('DIAGNOSIS_RESOLVED', { detail: data }));
           break;
         }
+        case 'DIAGNOSIS_CONFLICT_RAISED':
+          window.dispatchEvent(new CustomEvent('DIAGNOSIS_CONFLICT_RAISED', { detail: data }));
+          break;
+        case 'E_REINIT_AUTH':
+          newRunState.auditLog = [
+            { ts: Date.now(), eventType: 'AUTH_REINIT', message: '正在重新初始化认证链路...' },
+            ...newRunState.auditLog
+          ];
+          // Update status to reinitializing
+          return {
+            ...state,
+            flyDataAuthStatus: 'reinitializing',
+            run: newRunState
+          };
+        case 'AUTH_REINIT_SUCCESS':
+          newRunState.auditLog = [
+            { ts: Date.now(), eventType: 'AUTH_SUCCESS', message: '认证链路已恢复。' },
+            ...newRunState.auditLog
+          ];
+          window.dispatchEvent(new CustomEvent('copilot-notification', {
+            detail: { title: '认证成功', content: '认证链路已恢复，FlyData 任务已重新上线。', type: 'success' }
+          }));
+          return {
+            ...state,
+            flyDataAuthStatus: 'valid',
+            run: newRunState
+          };
+        case 'RELOAD_PAGE':
+          window.location.reload();
+          break;
         case 'KNOWLEDGE_DRAFT_UPDATED':
           newRunState.evidenceChain.knowledgeDrafts = newRunState.evidenceChain.knowledgeDrafts.map(d => 
             d.id === data.id ? { ...d, ...data.updates } : d
@@ -833,6 +867,13 @@ function globalReducer(state: GlobalState, action: Action): GlobalState {
           newSystemState.diagnosis_result = (data.resolution === 'use_human' || data.resolution === 're_verify') ? 'dust' : 'shading';
           newSystemState.current_stage = 'execution';
           break;
+        case 'DIAGNOSIS_CONFLICT_RAISED':
+          newSystemState.diagnosis_result = 'conflict';
+          break;
+        case 'E_REINIT_AUTH':
+        case 'AUTH_REINIT_SUCCESS':
+        case 'RELOAD_PAGE':
+          break;
         case 'TASK_OWNER_CONFIRMED':
         case 'HUMAN_REVIEW_COMPLETED':
           newSystemState.task_status = 'confirmed';
@@ -887,6 +928,11 @@ function globalReducer(state: GlobalState, action: Action): GlobalState {
       return {
         ...state,
         powerOpsSubModule: action.payload
+      };
+    case 'SET_LOWALTITUDE_SUBMODULE':
+      return {
+        ...state,
+        lowAltitudeSubModule: action.payload
       };
     case 'UPDATE_POWEROPS_WORKBENCH_DATA':
       return {
@@ -1070,6 +1116,7 @@ const getInitialState = (): GlobalState => {
       currentModule: moduleData?.currentModule || initialState.currentModule,
       currentSubModule: moduleData?.currentSubModule || initialState.currentSubModule,
       powerOpsSubModule: moduleData?.powerOpsSubModule || initialState.powerOpsSubModule,
+      lowAltitudeSubModule: moduleData?.lowAltitudeSubModule || initialState.lowAltitudeSubModule,
       dynamic_ticket_store: dynamicTicketsData,
       dynamic_report_store: dynamicReportsData,
       run: runData ? { 
@@ -1107,7 +1154,8 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('auxenta_module', JSON.stringify({
       currentModule: state.currentModule,
       currentSubModule: state.currentSubModule,
-      powerOpsSubModule: state.powerOpsSubModule
+      powerOpsSubModule: state.powerOpsSubModule,
+      lowAltitudeSubModule: state.lowAltitudeSubModule
     }));
 
     localStorage.setItem('auxenta_dynamic_tickets', JSON.stringify(state.dynamic_ticket_store));

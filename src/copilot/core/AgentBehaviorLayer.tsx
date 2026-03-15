@@ -122,6 +122,49 @@ export const AgentBehaviorLayer: React.FC = () => {
       ]);
     };
 
+    const handleVerificationRequested = (e: any) => {
+      triggerPrompt('verification_requested', '核验启动', "无人机核验指令已下发，正在前往目标区域，我将为您实时监控影像回传。", [
+        { label: '查看进度', event: 'E_VIEW_EVIDENCE', primary: true }
+      ]);
+    };
+
+    const handleVerificationCompleted = (e: any) => {
+      triggerPrompt('verification_completed', '核验完成', "无人机核验已完成，高清影像证据已就绪，建议您立即查看并确认诊断结论。", [
+        { label: '查看证据', event: 'E_VIEW_EVIDENCE', primary: true }
+      ]);
+    };
+
+    const handleDiagnosisResolved = (e: any) => {
+      const { resolution } = e.detail || {};
+      const msg = resolution === 're_verify' 
+        ? "已发起二次核验，我将持续跟踪最新进展。" 
+        : "冲突已解决，诊断结论已更新。我已经把这次分歧处理过程记录进知识库了。";
+      triggerPrompt('diagnosis_resolved', '诊断更新', msg, [
+        { label: '查看详情', event: 'E_VIEW_EVIDENCE', primary: true }
+      ]);
+    };
+
+    const handleDiagnosisConflict = (e: any) => {
+      triggerPrompt('diagnosis_conflict', '发现分歧', "检测到 AI 诊断与人工复核存在差异。我已经整理好了分歧点，请您定夺最终结论。", [
+        { label: '处理分歧', event: 'E_VIEW_EVIDENCE', primary: true }
+      ]);
+    };
+
+    const handlePlanConfirmed = (e: any) => {
+      triggerPrompt('plan_confirmed', '方案已确认', "运维方案已确认执行。我已为您自动拆解了任务清单并指派了责任人，请进入执行阶段查看。", [
+        { label: '进入执行', event: 'E_CONTINUE_EXEC', primary: true }
+      ]);
+    };
+
+    const handleReinitAuth = (e: any) => {
+      triggerPrompt('auth_reinit', '认证重置', "正在为您重新初始化 FlyData 认证链路，请稍候...", []);
+      
+      // Simulate actual re-initialization logic
+      setTimeout(() => {
+        globalDispatch({ type: 'AUTH_REINIT_SUCCESS' });
+      }, 2500);
+    };
+
     const handleModuleChange = (e: any) => {
       const { subModule } = e.detail;
       const currentState = globalStateRef.current;
@@ -153,6 +196,12 @@ export const AgentBehaviorLayer: React.FC = () => {
     window.addEventListener('TicketCreatedEvent', handleTicketCreated);
     window.addEventListener('TicketCompletedEvent', handleTicketCompleted);
     window.addEventListener('ReportGeneratedEvent', handleReportGenerated);
+    window.addEventListener('VERIFICATION_REQUESTED', handleVerificationRequested);
+    window.addEventListener('VERIFICATION_COMPLETED', handleVerificationCompleted);
+    window.addEventListener('DIAGNOSIS_RESOLVED', handleDiagnosisResolved);
+    window.addEventListener('DIAGNOSIS_CONFLICT_RAISED', handleDiagnosisConflict);
+    window.addEventListener('PLAN_CONFIRMED', handlePlanConfirmed);
+    window.addEventListener('E_REINIT_AUTH', handleReinitAuth);
     window.addEventListener('ModuleChangeEvent', handleModuleChange);
 
     return () => {
@@ -160,6 +209,12 @@ export const AgentBehaviorLayer: React.FC = () => {
       window.removeEventListener('TicketCreatedEvent', handleTicketCreated);
       window.removeEventListener('TicketCompletedEvent', handleTicketCompleted);
       window.removeEventListener('ReportGeneratedEvent', handleReportGenerated);
+      window.removeEventListener('VERIFICATION_REQUESTED', handleVerificationRequested);
+      window.removeEventListener('VERIFICATION_COMPLETED', handleVerificationCompleted);
+      window.removeEventListener('DIAGNOSIS_RESOLVED', handleDiagnosisResolved);
+      window.removeEventListener('DIAGNOSIS_CONFLICT_RAISED', handleDiagnosisConflict);
+      window.removeEventListener('PLAN_CONFIRMED', handlePlanConfirmed);
+      window.removeEventListener('E_REINIT_AUTH', handleReinitAuth);
       window.removeEventListener('ModuleChangeEvent', handleModuleChange);
     };
   }, []); // Empty dependency array, uses ref for state

@@ -243,6 +243,7 @@ const powerOpsEvents = [
   { id: 'NAV_WORKBENCH', label: '进入工作台' },
   { id: 'E_GENERATE_PLAN', label: '生成预案' },
   { id: 'NAV_TO_MODULE', label: '跳转模块' },
+  { id: 'E_REINIT_AUTH', label: '重新初始化认证' },
 ];
 
 powerOpsEvents.forEach(evt => {

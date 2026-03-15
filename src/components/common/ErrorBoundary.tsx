@@ -35,6 +35,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   public render() {
     if (this.state.hasError) {
+      const isScriptError = this.state.error?.message === 'Script error.';
+      
       return (
         <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
           <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center">
@@ -43,13 +45,15 @@ export class ErrorBoundary extends React.Component<Props, State> {
             </div>
             <h1 className="text-2xl font-bold text-slate-900 mb-2">系统遇到一点小问题</h1>
             <p className="text-slate-500 mb-8 leading-relaxed">
-              很抱歉，当前页面加载失败。这可能是由于状态冲突或数据异常导致的。
+              {isScriptError 
+                ? '第三方脚本加载失败（如高德地图）。这通常是由于网络波动或 API Key 限制导致的。' 
+                : '很抱歉，当前页面加载失败。这可能是由于状态冲突或数据异常导致的。'}
             </p>
             
             <div className="p-4 bg-slate-50 rounded-xl mb-8 text-left">
               <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">错误详情</div>
               <div className="text-xs font-mono text-slate-600 break-all">
-                {this.state.error?.message || 'Unknown error'}
+                {isScriptError ? 'Script error. (Possible Amap Load Failure)' : (this.state.error?.message || 'Unknown error')}
               </div>
             </div>
 

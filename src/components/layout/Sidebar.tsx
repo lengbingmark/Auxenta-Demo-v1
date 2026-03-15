@@ -17,10 +17,11 @@ import {
   ChevronDown,
   ChevronUp,
   Ticket,
-  PieChart
+  PieChart,
+  AlertCircle
 } from 'lucide-react';
 import { useGlobalStore } from '../../store/GlobalStore';
-import { PowerOpsSubModule } from '../../types';
+import { PowerOpsSubModule, LowAltitudeSubModule } from '../../types';
 
 export const Sidebar: React.FC = () => {
   const { state, dispatch } = useGlobalStore();
@@ -60,7 +61,19 @@ export const Sidebar: React.FC = () => {
         { id: 'REPORTS', name: '报告中心', icon: PieChart },
       ]
     },
-    { id: 'lowaltitudeops', to: '/app/scenario/lowaltitudeops', icon: Plane, label: '低空智管' },
+    { 
+      id: 'lowaltitudeops', 
+      to: '/app/scenario/lowaltitudeops', 
+      icon: Plane, 
+      label: '低空智航',
+      subModules: [
+        { id: 'SITUATION_OVERVIEW', name: '态势总览', icon: LayoutDashboard },
+        { id: 'TASK_CENTER', name: '任务中心', icon: ClipboardList },
+        { id: 'EVENT_CENTER', name: '事件中心', icon: AlertCircle },
+        { id: 'ALGORITHM_CENTER', name: '算法中心', icon: BrainCircuit },
+        { id: 'OPERATIONS_CENTER', name: '运营中心', icon: Settings },
+      ]
+    },
     { id: 'ruralops', to: '/app/scenario/ruralops', icon: Sprout, label: '商业运营' },
     { id: 'policeops', to: '/app/scenario/policeops', icon: Shield, label: '智慧警务' },
     { id: 'govpmo', to: '/app/scenario/govpmo', icon: ClipboardList, label: '政务督办' },
@@ -106,7 +119,18 @@ export const Sidebar: React.FC = () => {
     if (location.pathname !== scenario.to) {
       navigate(scenario.to);
     }
-    dispatch({ type: 'SET_POWEROPS_SUBMODULE', payload: subId as PowerOpsSubModule });
+    if (scenario.id === 'powerops') {
+      dispatch({ type: 'SET_POWEROPS_SUBMODULE', payload: subId as PowerOpsSubModule });
+    } else if (scenario.id === 'lowaltitudeops') {
+      dispatch({ type: 'SET_LOWALTITUDE_SUBMODULE', payload: subId as LowAltitudeSubModule });
+    }
+  };
+
+  const isSubModuleActive = (scenarioId: string, subId: string) => {
+    if (!location.pathname.includes(scenarioId)) return false;
+    if (scenarioId === 'powerops') return state.powerOpsSubModule === subId;
+    if (scenarioId === 'lowaltitudeops') return state.lowAltitudeSubModule === subId;
+    return false;
   };
 
   return (
@@ -165,7 +189,7 @@ export const Sidebar: React.FC = () => {
                 key={sub.id}
                 onClick={() => handleSubModuleClick(activeScenario, sub.id)}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  state.powerOpsSubModule === sub.id && location.pathname.includes(activeScenario.to)
+                  isSubModuleActive(activeScenario.id, sub.id)
                     ? 'bg-blue-600/10 text-blue-400'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
                 }`}

@@ -53,6 +53,8 @@ export const PowerOpsWorkbench: React.FC = () => {
     { step: 'COLLECTION', time: '10:00', version: 'V1' }
   ]);
 
+  const flyDataAuthStatus = state.flyDataAuthStatus || 'valid';
+
   const handleStepChange = (step: PowerOpsWorkbenchStep) => {
     dispatch({ type: 'SET_POWEROPS_WORKBENCH_STEP', payload: step });
     setHistory(prev => [{ step, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), version: `V${prev.length + 1}` }, ...prev]);
@@ -100,6 +102,41 @@ export const PowerOpsWorkbench: React.FC = () => {
       case 'COLLECTION':
         return (
           <div className="space-y-6">
+            {flyDataAuthStatus === 'invalid' && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }} 
+                animate={{ opacity: 1, height: 'auto' }}
+                className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center justify-between gap-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-red-600">
+                    <AlertTriangle size={20} />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-red-900">FlyDataAuthTask error: INVALID_USER_KEY</div>
+                    <div className="text-xs text-red-700/70">检测到认证密钥无效，FlyData 任务已暂停。</div>
+                  </div>
+                </div>
+                <Button 
+                  size="sm" 
+                  className="bg-red-600 hover:bg-red-700 text-white border-none"
+                  onClick={() => dispatch({ type: 'DISPATCH_RUN_EVENT', payload: { event: 'E_REINIT_AUTH', details: '用户手动触发认证重置' } })}
+                >
+                  重新初始化认证
+                </Button>
+              </motion.div>
+            )}
+
+            {flyDataAuthStatus === 'reinitializing' && (
+              <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-center gap-4">
+                <Loader2 size={20} className="text-blue-600 animate-spin" />
+                <div>
+                  <div className="text-sm font-bold text-blue-900">正在重新初始化认证链路...</div>
+                  <div className="text-xs text-blue-700/70">请稍候，系统正在自动恢复 FlyData 任务。</div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-6">
               <Card className="p-6 border-dashed border-2 border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:border-blue-400 hover:text-blue-400 transition-colors cursor-pointer group">
                 <Upload size={48} className="mb-4 group-hover:scale-110 transition-transform" />
@@ -126,6 +163,13 @@ export const PowerOpsWorkbench: React.FC = () => {
                   dispatch({ type: 'UPDATE_POWEROPS_WORKBENCH_DATA', payload: { collection: { station: '区域B南侧阵列', type: '异常巡检', date: '2024-02-27' } } });
                   toast.success('已自动填充示例数据');
                 }}>一键填充示例数据</Button>
+                <Button 
+                  variant="ghost" 
+                  className="w-full text-xs text-slate-400 hover:text-red-500" 
+                  onClick={() => dispatch({ type: 'SET_FLYDATA_AUTH_STATUS', payload: 'invalid' })}
+                >
+                  模拟认证异常 (INVALID_USER_KEY)
+                </Button>
               </div>
             </div>
             {state.powerOpsWorkbenchData?.collection && (

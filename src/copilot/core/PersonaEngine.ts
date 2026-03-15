@@ -35,6 +35,7 @@ export interface DrawerModel {
 }
 
 import { powerOpsScripts, powerOpsStateMachine } from '../config/powerOpsConfig';
+import { lowAltitudeScripts, lowAltitudeStateMachine } from '../config/lowAltitudeConfig';
 import { StateMachineConfig, CopilotScript, WorkContext } from '../types';
 import { RunState } from '../../types';
 
@@ -1109,9 +1110,21 @@ export const PersonaEngine = {
     return stateScripts[role] || stateScripts['OPERATOR'] || null;
   },
 
+  getLowAltitudeScript: (state: string): CopilotScript | null => {
+    return lowAltitudeScripts[state] || null;
+  },
+
   // Get PowerOps state machine config
   getPowerOpsStateMachine: (): StateMachineConfig => {
     return powerOpsStateMachine;
+  },
+
+  getLowAltitudeStateMachine: (): StateMachineConfig => {
+    return lowAltitudeStateMachine;
+  },
+
+  getLowAltitudeScripts: (): Record<string, CopilotScript> => {
+    return lowAltitudeScripts;
   },
   formatAnalysis: (
     judgment: string,
@@ -1226,6 +1239,18 @@ export const PersonaEngine = {
     if (userIntent?.includes('ADJUST_CRITERIA')) {
       return '我正在为您提供验收标准的参数建议。基于历史数据，我为您设定了合理的 PR 恢复阈值，您可以根据实际情况进行微调。';
     }
+    if (userIntent?.includes('VIEW_EVIDENCE')) {
+      return '证据链已经为您展开。您可以清晰地看到从 PR 异常波动到环境沙尘指数，再到无人机高清影像的完整闭环。这些数据都指向了“积灰遮挡”这一根因。';
+    }
+    if (userIntent?.includes('RE_VERIFY')) {
+      return '二次核验指令已下发。我将调动 UAV-08 号无人机前往区域 B 进行高清补拍，预计 3 分钟后影像回传。这将帮助我们彻底消除诊断分歧。';
+    }
+    if (userIntent?.includes('CONFIRM_PLAN')) {
+      return '好的，方案已选定。我正在为您自动拆解执行任务，并同步给相关的运维小组。您可以进入执行阶段实时跟踪进度。';
+    }
+    if (userIntent?.includes('VIEW_TASKS')) {
+      return '当前执行任务列表已更新。我注意到“区域 B 清洗”任务进度略有滞后，可能是由于现场水压不足。我已经提醒了负责人，建议您也关注一下。';
+    }
 
     // Default fallback: take the first non-analysis section or the first section
     const mainSection = drawerModel.sections.find(s => s.type !== 'analysis') || drawerModel.sections[0];
@@ -1240,6 +1265,7 @@ export const PersonaEngine = {
   // Get persona for current module
   getPersona: (module: string, scenario: string | null) => {
     if (scenario === 'powerops') return { name: '量仔', role: '电力运维专家' };
+    if (scenario === 'lowaltitudeops') return { name: '量仔', role: '低空调度官' };
     if (module === 'knowledge-graph') return { name: '知识教练', role: '知识引擎专家' };
     if (module === 'data-hub') return { name: '数据分析助理', role: '数据专家' };
     if (module === 'reasoning-engine') return { name: '决策调参助手', role: '算法专家' };
@@ -1289,6 +1315,15 @@ export const PersonaEngine = {
       };
     }
     // workbench keeps original behavior, which is handled below
+
+    if (scenario === 'lowaltitudeops') {
+      const scripts = PersonaEngine.getLowAltitudeScripts();
+      const welcome = scripts.welcome;
+      return {
+        content: welcome.message,
+        actions: welcome.actions
+      };
+    }
 
     if (scenario === 'powerops') {
       switch (stage) {

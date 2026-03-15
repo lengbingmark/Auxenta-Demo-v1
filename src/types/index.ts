@@ -17,6 +17,13 @@ export type PowerOpsWorkbenchStep =
 
 export type PowerOpsSubModule = 'HOME' | 'WORKBENCH' | 'ASSETS' | 'TICKETS' | 'LEDGER' | 'REPORTS';
 
+export type LowAltitudeSubModule = 
+  | 'SITUATION_OVERVIEW' 
+  | 'TASK_CENTER' 
+  | 'EVENT_CENTER' 
+  | 'ALGORITHM_CENTER' 
+  | 'OPERATIONS_CENTER';
+
 export interface CopilotMessageCard {
   type: 'info' | 'warning' | 'action';
   title: string;
@@ -177,6 +184,10 @@ export type RunEvent =
   | 'DOWNLOAD_REPORT_CLICKED'
   | 'DIAG_CONFLICT'
   | 'DIAGNOSIS_RESOLVED'
+  | 'DIAGNOSIS_CONFLICT_RAISED'
+  | 'E_REINIT_AUTH'
+  | 'AUTH_REINIT_SUCCESS'
+  | 'RELOAD_PAGE'
   | 'KNOWLEDGE_DRAFT_UPDATED'
   | 'KNOWLEDGE_DRAFT_ARCHIVED'
   | 'MITIGATION_EXECUTED'
@@ -258,6 +269,8 @@ export interface GlobalState {
   powerOpsState?: PowerOpsState;
   powerOpsWorkbenchStep?: PowerOpsWorkbenchStep;
   powerOpsSubModule?: PowerOpsSubModule;
+  lowAltitudeSubModule?: LowAltitudeSubModule;
+  flyDataAuthStatus: 'valid' | 'invalid' | 'reinitializing';
   powerOpsWorkbenchData?: any;
   powerOpsClosedLoopLedger?: any[];
   // Agentic Feedback
@@ -343,6 +356,7 @@ export type Action =
   | { type: 'SET_POWEROPS_STATE'; payload: PowerOpsState }
   | { type: 'SET_POWEROPS_WORKBENCH_STEP'; payload: PowerOpsWorkbenchStep }
   | { type: 'SET_POWEROPS_SUBMODULE'; payload: PowerOpsSubModule }
+  | { type: 'SET_LOWALTITUDE_SUBMODULE'; payload: LowAltitudeSubModule }
   | { type: 'UPDATE_POWEROPS_WORKBENCH_DATA'; payload: any }
   | { type: 'ADD_POWEROPS_LEDGER_ENTRY'; payload: any }
   | { type: 'UPSERT_DYNAMIC_TICKET'; payload: DynamicTicket }
@@ -352,4 +366,6 @@ export type Action =
   | { type: 'UPSERT_DYNAMIC_REPORT'; payload: DynamicReport }
   | { type: 'CLEANUP_EXPIRED_REPORTS' }
   | { type: 'EXECUTE_AGENT_ACTION'; payload: string }
-  | { type: 'ADD_AGENT_ACTION'; payload: AgentAction };
+  | { type: 'ADD_AGENT_ACTION'; payload: AgentAction }
+  | { type: 'AUTH_REINIT_SUCCESS' }
+  | { type: 'SET_FLYDATA_AUTH_STATUS'; payload: 'valid' | 'invalid' | 'reinitializing' };

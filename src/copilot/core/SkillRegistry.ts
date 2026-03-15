@@ -458,5 +458,55 @@ export const SkillRegistry: Skill[] = [
         suggestions: ['AnalyzeRisk', 'DownloadReport']
       };
     }
+  },
+  {
+    name: 'explain_script_error',
+    description: '解释脚本错误 (Script error)',
+    trigger: (input) => input.includes('Script error') || input.includes('脚本错误'),
+    execute: async (ctx, input, dispatch) => {
+      return {
+        success: true,
+        thinking: '检测到系统报告了 Script error。这通常发生在加载第三方脚本（如地图服务）失败时。',
+        message: PersonaEngine.formatReply(
+          '系统检测到脚本加载异常 (Script error)。',
+          '这通常是由于网络波动导致的高德地图等第三方资源加载失败，或者是浏览器的跨域安全限制。',
+          '建议您尝试刷新页面重新加载资源，或检查网络连接是否稳定。'
+        ),
+        actions: [
+          { label: '刷新页面', event: 'RELOAD_PAGE', primary: true }
+        ]
+      };
+    }
+  },
+  {
+    name: 'explain_auth_error',
+    description: '解释认证错误 (INVALID_USER_KEY)',
+    trigger: (input) => input.includes('INVALID_USER_KEY') || input.includes('认证失败') || input.includes('密钥无效'),
+    execute: async (ctx, input, dispatch) => {
+      return {
+        success: true,
+        thinking: '我正在检查系统的认证链路。错误代码 INVALID_USER_KEY 通常表示当前的 API Key 已过期或权限不足。',
+        message: PersonaEngine.formatReply(
+          '检测到认证异常 (INVALID_USER_KEY)。',
+          '这通常是由于 FlyData 认证任务中的用户密钥失效导致的。',
+          '建议您检查环境变量中的 API_KEY 设置，或联系系统管理员重新分配权限。'
+        ),
+        actions: [
+          { label: '重新初始化', event: 'E_REINIT_AUTH', primary: true }
+        ]
+      };
+    }
+  },
+  {
+    name: 'query_station_health',
+    description: '查询场站健康度',
+    trigger: (input) => input.includes('健康度') || input.includes('评分'),
+    execute: async (ctx, input, dispatch, globalState) => {
+      return {
+        success: true,
+        message: '当前场站综合健康评分为 88 分。主要扣分项为区域 B 的组件污染（-5分）及 3 号逆变器的轻微过热（-2分）。',
+        suggestions: ['E_EXPLAIN_RISK', 'E_VIEW_DATA']
+      };
+    }
   }
 ];

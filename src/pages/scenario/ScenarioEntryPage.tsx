@@ -12,7 +12,14 @@ import {
   Tooltip as RechartsTooltip,
   BarChart,
   Bar,
-  Cell
+  Cell,
+  PieChart as RechartsPieChart,
+  Pie,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis
 } from 'recharts';
 import { 
   Briefcase, 
@@ -21,6 +28,7 @@ import {
   Zap, 
   Shield, 
   ClipboardList, 
+  LayoutDashboard,
   ArrowRight,
   TrendingUp,
   AlertTriangle,
@@ -28,6 +36,7 @@ import {
   AlertCircle,
   Search,
   Bot,
+  BrainCircuit,
   Navigation,
   FileCheck,
   Clock,
@@ -44,15 +53,28 @@ import {
   Cloud,
   Thermometer,
   TrendingDown,
-  LayoutDashboard,
   Database as DatabaseIcon,
   Ticket,
   FileText as FileTextIcon,
   PieChart,
   Calendar,
   Share2,
-  Printer,
-  FileText
+  Printer, 
+  FileText,
+  Mic,
+  MapPin,
+  ShieldAlert,
+  Radio,
+  Cpu,
+  Network,
+  Video,
+  Battery,
+  ArrowUpRight,
+  Target,
+  Layers,
+  Info,
+  Maximize2,
+  Volume2
 } from 'lucide-react';
 import { useGlobalStore } from '../../store/GlobalStore';
 import { useCopilot } from '../../copilot/core/CopilotContext';
@@ -66,9 +88,11 @@ import { AssetLedger } from '../../components/scenario/AssetLedger';
 import { WorkOrderCenter } from '../../components/scenario/WorkOrderCenter';
 import { ReportCenter } from '../../components/scenario/ReportCenter';
 
+import { MapContainer } from '../../components/scenario/MapContainer';
+
 const SCENARIO_CONFIG: Record<string, { title: string; icon: React.ElementType; color: string; description: string }> = {
   powerops: { title: '电力能源', icon: Zap, color: 'text-yellow-600', description: '电网负荷监控与调度' },
-  lowaltitudeops: { title: '低空智管', icon: Plane, color: 'text-sky-600', description: '低空空域管理与航线规划' },
+  lowaltitudeops: { title: '低空智航', icon: Plane, color: 'text-sky-600', description: '低空空域管理与航线规划' },
   ruralops: { title: '商业运营', icon: Sprout, color: 'text-green-600', description: '农业数据监测与乡村治理' },
   policeops: { title: '智慧警务', icon: Shield, color: 'text-indigo-600', description: '治安防控与警情研判' },
   govpmo: { title: '政务督办', icon: ClipboardList, color: 'text-red-600', description: '重点任务督查与绩效考核' },
@@ -374,123 +398,520 @@ const AssetHealthStructure = ({ onCardClick }: { onCardClick: (type: string) => 
 };
 
 const RiskInsightArea = ({ risks }: { risks: any[] }) => {
-  const getLevelStyles = (level: string) => {
-    if (level === 'error') return 'bg-red-500 text-white border-red-600 shadow-sm shadow-red-200';
-    if (level === 'warning') return 'bg-amber-500 text-white border-amber-600 shadow-sm shadow-amber-200';
-    return 'bg-emerald-500 text-white border-emerald-600 shadow-sm shadow-emerald-200';
-  };
+  // ... (existing code)
+};
 
-  const getLevelLabel = (level: string) => {
-    if (level === 'error') return '紧急风险';
-    if (level === 'warning') return '中等风险';
-    return '低风险';
+const LOW_ALTITUDE_EVENTS = [
+  { id: 1, title: '工业园区火情预警', level: 'CRITICAL', time: '10:45:22', area: '工业园区 B-02', status: '处理中' },
+  { id: 2, title: 'CBD 区域异常飞行', level: 'WARNING', time: '11:02:15', area: 'CBD 核心区', status: '待核实' },
+  { id: 3, title: 'A区临时空域管制通知', level: 'INFO', time: '11:15:00', area: 'A区全域', status: '已发布' },
+  { id: 4, title: '重大项目夜间异常活动', level: 'WARNING', time: '11:20:45', area: '重点工程区', status: '监控中' },
+];
+
+const LowAltitudeSituationOverview = () => {
+  const [currentTime, setCurrentTime] = React.useState(new Date());
+
+  React.useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const [isDispatchWorkbenchOpen, setIsDispatchWorkbenchOpen] = React.useState(false);
+  const { dispatch: copilotDispatch } = useCopilot();
+
+  // Mock data for charts
+  const eventTrendData = [
+    { time: '00:00', fire: 0, abnormal: 1, notice: 0 },
+    { time: '04:00', fire: 0, abnormal: 0, notice: 1 },
+    { time: '08:00', fire: 1, abnormal: 2, notice: 0 },
+    { time: '12:00', fire: 2, abnormal: 4, notice: 1 },
+    { time: '16:00', fire: 1, abnormal: 3, notice: 2 },
+    { time: '20:00', fire: 0, abnormal: 1, notice: 0 },
+  ];
+
+  const taskTypeData = [
+    { name: '巡检', value: 45, color: '#3b82f6' },
+    { name: '应急', value: 25, color: '#ef4444' },
+    { name: '安防', value: 20, color: '#10b981' },
+    { name: '物流', value: 10, color: '#f59e0b' },
+  ];
+
+  const dailySortiesData = [
+    { time: '06:00', count: 5 },
+    { time: '09:00', count: 18 },
+    { time: '12:00', count: 32 },
+    { time: '15:00', count: 24 },
+    { time: '18:00', count: 12 },
+    { time: '21:00', count: 4 },
+  ];
+
+  const regionalTaskData = [
+    { name: '工业园', count: 12 },
+    { name: 'CBD', count: 8 },
+    { name: '住宅区', count: 5 },
+    { name: '港口', count: 7 },
+  ];
+
+  const efficiencyData = [
+    { subject: '响应速度', A: 120, full: 150 },
+    { subject: '覆盖范围', A: 98, full: 150 },
+    { subject: '任务成功率', A: 140, full: 150 },
+    { subject: '设备可用性', A: 130, full: 150 },
+    { subject: '成本效益', A: 110, full: 150 },
+  ];
+
+  const handleAISuggestionClick = () => {
+    setIsDispatchWorkbenchOpen(true);
+    copilotDispatch({
+      type: 'ADD_MESSAGE',
+      payload: {
+        id: `ai-dispatch-${Date.now()}`,
+        role: 'assistant',
+        content: '已为您打开 AI 调度工作台。正在根据A区空域管制通知重新规划航线...',
+        timestamp: Date.now(),
+        type: 'text'
+      }
+    });
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-black text-slate-900 flex items-center gap-4">
-          <AlertCircle size={32} className="text-red-600" />
-          风险洞察与异常溯源
-        </h2>
-      </div>
-
-      <div className="grid grid-cols-12 gap-8">
-        {/* Left: Risk List */}
-        <div className="col-span-12 lg:col-span-4 space-y-6">
-          <div className="text-sm font-black text-slate-400 uppercase tracking-widest mb-2">当前风险列表 (实时监控)</div>
-          {risks.map((r) => (
-            <Card key={r.id} className={`p-6 border-2 shadow-sm hover:shadow-xl transition-all cursor-pointer group ${r.status === 'handling' ? 'border-blue-500 bg-blue-50/50' : r.status === 'handled' ? 'opacity-60 border-slate-200 bg-slate-50' : 'border-slate-200 bg-white'}`}>
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl font-black text-slate-900">{r.name}</span>
-                    {r.status === 'handling' && <Loader2 size={20} className="animate-spin text-blue-600" />}
-                    {r.status === 'handled' && <CheckCircle2 size={20} className="text-emerald-600" />}
-                  </div>
-                  <div className={`inline-flex items-center px-4 py-2 rounded-xl text-xs font-black border uppercase tracking-wider ${getLevelStyles(r.level)}`}>
-                    {getLevelLabel(r.level)}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-black text-red-600">{r.impact}</div>
-                  <div className="text-sm font-bold text-slate-400 mt-1 uppercase tracking-tighter">预计损失</div>
-                </div>
-              </div>
-              <button className="w-full py-4 text-sm font-black text-blue-700 bg-blue-50 border border-blue-200 rounded-2xl opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-600 hover:text-white hover:border-blue-600 shadow-lg shadow-blue-200/50">
-                查看溯源详情
-              </button>
-            </Card>
-          ))}
+      {/* 0）系统名称标签卡片 */}
+      <Card className="h-[68px] border border-gray-200 shadow-sm bg-white flex items-center justify-between px-6 overflow-hidden relative">
+        <div className="flex items-center gap-4 relative z-10">
+          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center border border-blue-100 shadow-sm">
+            <Cpu size={20} className="text-blue-600" />
+          </div>
+          <div className="flex flex-col">
+            <h1 className="text-base font-bold tracking-tight text-gray-900 leading-tight">
+              AOP Autonomous Operations Platform
+            </h1>
+            <p className="text-xs font-medium text-gray-500">
+              城市低空自主运营平台
+            </p>
+          </div>
         </div>
 
-        {/* Right: Analysis */}
-        <div className="col-span-12 lg:col-span-8">
-          <Card className="h-full p-12 border-none shadow-2xl bg-white relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 rounded-full -mr-32 -mt-32 opacity-50" />
-            
-            <div className="relative z-10 grid grid-cols-2 gap-12 mb-12">
-              <div className="p-10 bg-slate-900 rounded-[40px] border-none shadow-2xl shadow-slate-200">
-                <div className="text-xs font-black text-slate-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-3">
-                  <div className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
-                  风险影响测算
-                </div>
-                <div className="space-y-10">
-                  <div>
-                    <div className="text-sm text-slate-400 font-bold mb-3 uppercase tracking-wider">若不处理，预计7日损失</div>
-                    <div className="text-6xl font-black text-white tracking-tighter">¥32,000</div>
-                  </div>
-                  <div className="pt-10 border-t border-slate-800">
-                    <div className="text-sm text-emerald-500 font-bold mb-3 uppercase tracking-wider">若处理，收益恢复预测</div>
-                    <div className="text-4xl font-black text-emerald-400">+1.1%</div>
-                  </div>
-                </div>
-              </div>
+        <div className="flex items-center gap-8 relative z-10">
+          <div className="text-right">
+            <div className="text-sm font-mono font-bold tracking-tight text-gray-900">
+              {currentTime.toLocaleTimeString('zh-CN', { hour12: false })}
+            </div>
+            <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">
+              {currentTime.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-')}
+            </div>
+          </div>
 
-              <div className="p-10 bg-blue-50/50 rounded-[40px] border border-blue-100">
-                <div className="text-xs font-black text-blue-400 uppercase tracking-[0.2em] mb-8 flex items-center gap-3">
-                  <Search size={18} /> 溯源分析
+          <div className="h-8 w-px bg-gray-100" />
+
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 shadow-sm">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[11px] font-bold text-emerald-600 tracking-wide uppercase">System Online</span>
+          </div>
+        </div>
+      </Card>
+
+      {/* 1）顶部：运营指标区 */}
+      <div className="grid grid-cols-4 gap-4">
+        {[
+          { label: '机巢数量', value: '5', sub: '全域覆盖', icon: DatabaseIcon, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: '在线无人机', value: '9', sub: '含单兵无人机4架', icon: Plane, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { label: '今日任务', value: '32', sub: '今日已执行18次', icon: ClipboardList, color: 'text-sky-600', bg: 'bg-sky-50' },
+          { label: '事件告警', value: '4', sub: '高优先级2条', icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50' },
+        ].map((stat, i) => (
+          <Card key={i} className="p-5 border-none shadow-sm flex items-center gap-4 bg-white">
+            <div className={`w-12 h-12 rounded-xl ${stat.bg} ${stat.color} flex items-center justify-center`}>
+              <stat.icon size={24} />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-500">{stat.label}</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-gray-900">{stat.value}</span>
+                <span className="text-xs text-gray-400 font-medium">{stat.sub}</span>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* 2）中部：低空态势大屏 (地图为主) */}
+      <div className="relative h-[700px] rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-slate-50">
+        <MapContainer>
+          {/* 这里可以叠加后续图层 */}
+        </MapContainer>
+
+        {/* 左侧叠加卡片：事件态势 (毛玻璃效果) */}
+
+        {/* 左侧叠加卡片：事件态势 (毛玻璃效果) */}
+        <div className="absolute top-6 left-6 w-80 bg-white/40 backdrop-blur-md rounded-2xl p-5 shadow-xl border border-white/40 z-10 flex flex-col gap-5">
+          <div>
+            <h3 className="text-base font-bold text-gray-900 flex items-center gap-2 mb-4">
+              <ShieldAlert size={18} className="text-red-500" />
+              低空安全态势
+            </h3>
+            
+            {/* 1）事件统计 */}
+            <div className="grid grid-cols-2 gap-3 mb-5">
+              {[
+                { label: '告警总数', value: '24', color: 'text-gray-900' },
+                { label: '高风险事件', value: '2', color: 'text-red-600' },
+                { label: '处理中事件', value: '5', color: 'text-blue-600' },
+                { label: '已解决事件', value: '17', color: 'text-emerald-600' },
+              ].map((item, i) => (
+                <div key={i} className="bg-white/50 p-2 rounded-xl border border-white/20">
+                  <div className="text-[10px] font-bold text-gray-400 uppercase">{item.label}</div>
+                  <div className={`text-lg font-black ${item.color}`}>{item.value}</div>
                 </div>
-                <div className="text-2xl text-slate-900 leading-snug font-bold tracking-tight">
-                  “污染指数异常主要集中在<span className="text-blue-600 underline decoration-blue-200 underline-offset-8">区域B南侧阵列</span>，判定为<span className="text-red-600">外部环境叠加运维延迟</span>所致。”
+              ))}
+            </div>
+
+            {/* 2）事件趋势 */}
+            <div className="mb-5">
+              <div className="text-[10px] font-bold text-gray-400 uppercase mb-2">过去24小时低空事件趋势</div>
+              <div className="h-32 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={eventTrendData}>
+                    <XAxis dataKey="time" hide />
+                    <YAxis hide />
+                    <RechartsTooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '10px' }}
+                    />
+                    <Line type="monotone" dataKey="fire" stroke="#ef4444" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="abnormal" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="notice" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex justify-center gap-4 mt-1">
+                <div className="flex items-center gap-1 text-[8px] font-bold text-gray-500"><div className="w-1.5 h-1.5 bg-red-500 rounded-full" /> 火情</div>
+                <div className="flex items-center gap-1 text-[8px] font-bold text-gray-500"><div className="w-1.5 h-1.5 bg-amber-500 rounded-full" /> 异常飞行</div>
+                <div className="flex items-center gap-1 text-[8px] font-bold text-gray-500"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> 空域通知</div>
+              </div>
+            </div>
+
+            {/* 3）实时事件流 */}
+            <div className="space-y-2 overflow-y-auto max-h-[180px] pr-1">
+              {LOW_ALTITUDE_EVENTS.map((event) => (
+                <div key={event.id} className="bg-white/40 p-2 rounded-lg border border-white/20 hover:bg-white/60 transition-colors cursor-pointer">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${
+                      event.level === 'CRITICAL' ? 'bg-red-100 text-red-600' : 
+                      event.level === 'WARNING' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'
+                    }`}>{event.level}</span>
+                    <span className="text-[8px] text-gray-400 font-mono">{event.time}</span>
+                  </div>
+                  <div className="text-[10px] font-bold text-gray-800 truncate">{event.title}</div>
+                  <div className="flex justify-between text-[8px] text-gray-500 mt-1">
+                    <span>{event.area}</span>
+                    <span className="text-blue-600">{event.status}</span>
+                  </div>
                 </div>
-                <div className="mt-12 flex items-center gap-10">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-2">关联因素</span>
-                    <span className="text-lg font-black text-slate-900">环境因素 (70%)</span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 右侧叠加卡片：运行态势 (毛玻璃效果) */}
+        <div className="absolute top-6 right-6 w-80 bg-white/40 backdrop-blur-md rounded-2xl p-5 shadow-xl border border-white/40 z-10 flex flex-col gap-5">
+          <div>
+            <h3 className="text-base font-bold text-gray-900 flex items-center gap-2 mb-4">
+              <Activity size={18} className="text-blue-600" />
+              低空运行态势
+            </h3>
+
+            {/* 1）飞行运行状态 */}
+            <div className="grid grid-cols-2 gap-3 mb-5">
+              {[
+                { label: '在线机巢', value: '4', total: '5', color: 'text-blue-600' },
+                { label: '执行任务', value: '3', total: '8', color: 'text-emerald-600' },
+                { label: '待执行任务', value: '5', total: '', color: 'text-gray-600' },
+                { label: '空域限制区', value: '2', total: '', color: 'text-amber-600' },
+              ].map((item, i) => (
+                <div key={i} className="bg-white/50 p-2 rounded-xl border border-white/20">
+                  <div className="text-[10px] font-bold text-gray-400 uppercase">{item.label}</div>
+                  <div className="flex items-baseline gap-1">
+                    <span className={`text-lg font-black ${item.color}`}>{item.value}</span>
+                    {item.total && <span className="text-[10px] text-gray-400">/ {item.total}</span>}
                   </div>
-                  <div className="w-px h-12 bg-slate-200" />
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-2">运维响应</span>
-                    <span className="text-lg font-black text-slate-900">延迟 72h</span>
-                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 2）任务类型分布 (饼图) */}
+            <div className="mb-5">
+              <div className="text-[10px] font-bold text-gray-400 uppercase mb-2">任务类型分布</div>
+              <div className="h-32 w-full flex items-center">
+                <div className="w-1/2 h-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Pie
+                        data={taskTypeData}
+                        innerRadius={30}
+                        outerRadius={45}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {taskTypeData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="w-1/2 space-y-1">
+                  {taskTypeData.map((item, i) => (
+                    <div key={i} className="flex items-center justify-between text-[10px]">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
+                        <span className="text-gray-500">{item.name}</span>
+                      </div>
+                      <span className="font-bold text-gray-700">{item.value}%</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
 
-            <div className="relative z-10 p-10 bg-blue-600 rounded-[32px] flex items-center justify-between shadow-2xl shadow-blue-200 group">
-              <div className="flex items-center gap-8">
-                <div className="w-16 h-16 rounded-3xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shadow-xl">
-                  <Bot size={32} className="animate-bounce" />
+            {/* 3）空域状态 */}
+            <div>
+              <div className="text-[10px] font-bold text-gray-400 uppercase mb-3">空域状态</div>
+              <div className="space-y-3">
+                {[
+                  { label: '可飞区域', status: '正常', color: 'bg-emerald-500', text: 'text-emerald-600' },
+                  { label: '限制区域', status: '受控', color: 'bg-amber-500', text: 'text-amber-600' },
+                  { label: '禁飞区域', status: '封闭', color: 'bg-red-500', text: 'text-red-600' },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${item.color}`} />
+                      <span className="text-xs font-bold text-gray-700">{item.label}</span>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/50 ${item.text}`}>{item.status}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 地图控制按钮 */}
+        <div className="absolute bottom-6 right-6 flex flex-col gap-2 z-10">
+          <Button size="sm" variant="secondary" className="w-10 h-10 p-0 rounded-xl bg-white/80 backdrop-blur-md border-none shadow-md hover:bg-white"><Maximize2 size={18} /></Button>
+          <Button size="sm" variant="secondary" className="w-10 h-10 p-0 rounded-xl bg-white/80 backdrop-blur-md border-none shadow-md hover:bg-white"><Layers size={18} /></Button>
+        </div>
+
+        {/* 地图图例 */}
+        <div className="absolute bottom-6 left-6 bg-white/80 backdrop-blur-md rounded-xl p-3 shadow-lg border border-white/40 z-10 flex flex-col gap-2">
+          <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">地图图例</div>
+          <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600">
+            <div className="w-3 h-3 rounded bg-blue-600 border border-white shadow-sm" /> 自动化机巢
+          </div>
+          <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600">
+            <div className="w-3 h-3 rounded-full bg-emerald-500 border border-white shadow-sm" /> 在线无人机
+          </div>
+          <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600">
+            <div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/40 border-dashed" /> 禁飞管制区
+          </div>
+          <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600">
+            <div className="w-3 h-3 rounded-full bg-amber-500/20 border border-amber-500/40 border-dashed" /> 限制飞行区
+          </div>
+        </div>
+
+        {/* AI 调度触发提示 (量仔助手提示示例 - 右下角) */}
+        <div className="absolute bottom-6 right-20 z-10">
+          <motion.div 
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            className="bg-white/80 backdrop-blur-md border border-blue-200 text-blue-700 px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 cursor-pointer hover:bg-white transition-all group"
+            onClick={handleAISuggestionClick}
+          >
+            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-blue-200">
+              <Bot size={18} className="group-hover:rotate-12 transition-transform" />
+            </div>
+            <div className="flex flex-col">
+              <div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">量仔助手建议</div>
+              <div className="text-sm font-bold">
+                检测到A区临时空域管制通知...
+              </div>
+            </div>
+            <ChevronRight size={18} className="text-blue-300 group-hover:translate-x-1 transition-transform" />
+          </motion.div>
+        </div>
+      </div>
+
+      {/* 3）底部运营监控区 */}
+      <div className="grid grid-cols-12 gap-6">
+        {/* 左侧：当前任务监控 */}
+        <div className="col-span-5">
+          <Card className="p-6 border-none shadow-sm bg-white h-full">
+            <h3 className="text-base font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <Video size={18} className="text-blue-600" />
+              当前任务监控
+            </h3>
+            <div className="flex gap-6">
+              <div className="w-56 aspect-video bg-slate-900 rounded-xl overflow-hidden relative shrink-0 shadow-inner">
+                {/* Drone Aerial Perspective Video Placeholder */}
+                <img src="https://picsum.photos/seed/drone_view_city/400/225" className="w-full h-full object-cover opacity-80" alt="Drone Aerial View" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center text-white border border-white/20">
+                    <Activity size={20} className="animate-pulse" />
+                  </div>
                 </div>
-                <div className="max-w-md">
-                  <div className="text-white/70 text-xs font-black uppercase tracking-[0.2em] mb-2">量仔智能建议</div>
-                  <div className="text-xl text-white font-bold leading-tight">
-                    系统已锁定异常阵列，建议优先执行区域B南侧清洗作业。
+                <div className="absolute top-2 left-2 px-2 py-0.5 bg-red-600/80 backdrop-blur-md text-white text-[8px] font-bold rounded flex items-center gap-1">
+                  <div className="w-1 h-1 bg-white rounded-full animate-pulse" /> LIVE
+                </div>
+                <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/40 backdrop-blur-sm text-white text-[8px] font-mono rounded">
+                  CAM-01
+                </div>
+              </div>
+              <div className="flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                    <h4 className="text-sm font-bold text-gray-900">任务：工业园火情侦察</h4>
+                  </div>
+                  <p className="text-xs text-gray-400">无人机：UAV-03 | 预计结束：12分钟</p>
+                </div>
+                <div className="grid grid-cols-2 gap-y-4 gap-x-2">
+                  <div>
+                    <div className="text-[10px] text-gray-400 uppercase font-bold">飞行高度</div>
+                    <div className="text-sm font-bold text-gray-900">120m</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-gray-400 uppercase font-bold">剩余电量</div>
+                    <div className="text-sm font-bold text-emerald-600">82%</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-gray-400 uppercase font-bold">链路状态</div>
+                    <div className="text-sm font-bold text-emerald-600">正常</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-gray-400 uppercase font-bold">任务进度</div>
+                    <div className="text-sm font-bold text-blue-600">65%</div>
                   </div>
                 </div>
               </div>
-              <Button className="bg-white text-blue-600 hover:bg-blue-50 h-16 px-10 rounded-2xl text-base font-black shadow-2xl transition-all active:scale-95">
-                生成方案模拟
-              </Button>
+            </div>
+          </Card>
+        </div>
+
+        {/* 右侧：低空运营分析 */}
+        <div className="col-span-7">
+          <Card className="p-6 border-none shadow-sm bg-white h-full">
+            <h3 className="text-base font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <TrendingUp size={18} className="text-blue-600" />
+              低空运营分析
+            </h3>
+            <div className="grid grid-cols-3 gap-6 h-48">
+              {/* 今日飞行架次 (折线图) */}
+              <div className="flex flex-col">
+                <div className="text-[10px] font-bold text-gray-400 uppercase mb-2">今日飞行架次</div>
+                <div className="flex-1">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={dailySortiesData}>
+                      <XAxis dataKey="time" hide />
+                      <YAxis hide />
+                      <RechartsTooltip />
+                      <Line type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2} dot={{ r: 2, fill: '#3b82f6' }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* 各区域任务数量 (柱状图) */}
+              <div className="flex flex-col">
+                <div className="text-[10px] font-bold text-gray-400 uppercase mb-2">各区域任务数量</div>
+                <div className="flex-1">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={regionalTaskData}>
+                      <XAxis dataKey="name" hide />
+                      <YAxis hide />
+                      <RechartsTooltip />
+                      <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* 运营效率 (雷达图) */}
+              <div className="flex flex-col">
+                <div className="text-[10px] font-bold text-gray-400 uppercase mb-2">运营效率</div>
+                <div className="flex-1">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={efficiencyData}>
+                      <PolarGrid stroke="#e2e8f0" />
+                      <PolarAngleAxis dataKey="subject" tick={{ fontSize: 8, fill: '#94a3b8' }} />
+                      <Radar name="效率" dataKey="A" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             </div>
           </Card>
         </div>
       </div>
+
+      {/* AI Dispatch Workbench Modal */}
+      <Modal 
+        isOpen={isDispatchWorkbenchOpen} 
+        onClose={() => setIsDispatchWorkbenchOpen(false)}
+        title="AI 智能调度工作台"
+      >
+        <div className="p-6 space-y-6">
+          <div className="flex items-start gap-4 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+            <Bot size={24} className="text-blue-600 shrink-0" />
+            <div>
+              <h4 className="font-bold text-blue-900 mb-1">航线重规划建议</h4>
+              <p className="text-sm text-blue-700">检测到 A区 (113.2, 23.1) 存在临时空域管制，原定巡检航线已失效。建议采用备选航线 B，避开管制区域。</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h5 className="text-sm font-bold text-gray-900">原定方案</h5>
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-xs space-y-2">
+                <div className="flex justify-between"><span>航线长度</span><span className="font-bold">12.5km</span></div>
+                <div className="flex justify-between"><span>预计耗时</span><span className="font-bold">15min</span></div>
+                <div className="flex justify-between"><span>风险等级</span><span className="text-red-500 font-bold">高 (管制冲突)</span></div>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <h5 className="text-sm font-bold text-gray-900">AI 推荐方案</h5>
+              <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 text-xs space-y-2">
+                <div className="flex justify-between"><span>航线长度</span><span className="font-bold">14.2km</span></div>
+                <div className="flex justify-between"><span>预计耗时</span><span className="font-bold">18min</span></div>
+                <div className="flex justify-between"><span>风险等级</span><span className="text-emerald-500 font-bold">低 (合规)</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-slate-900 rounded-xl aspect-video relative overflow-hidden">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-white/20 text-sm font-mono tracking-widest uppercase">Simulation View</span>
+            </div>
+            <img src="https://picsum.photos/seed/simulation/600/340" className="w-full h-full object-cover opacity-60" alt="Simulation" />
+            <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center">
+              <div className="flex gap-2">
+                <div className="px-2 py-1 bg-black/50 backdrop-blur-md rounded text-[10px] text-white">UAV-03</div>
+                <div className="px-2 py-1 bg-black/50 backdrop-blur-md rounded text-[10px] text-white">ALT: 120m</div>
+              </div>
+              <div className="px-2 py-1 bg-emerald-500 rounded text-[10px] text-white font-bold">READY</div>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <Button variant="secondary" className="flex-1" onClick={() => setIsDispatchWorkbenchOpen(false)}>取消</Button>
+            <Button className="flex-1 bg-blue-600 hover:bg-blue-700 border-none" onClick={() => {
+              toast.success('AI 调度指令已下发，航线已更新');
+              setIsDispatchWorkbenchOpen(false);
+            }}>确认执行调度</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
-
 
 export const ScenarioEntryPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -543,6 +964,18 @@ export const ScenarioEntryPage: React.FC = () => {
   React.useEffect(() => {
     if (id === 'powerops' && currentState === 'S0_OVERVIEW') {
       handleStateChange('S0_OVERVIEW');
+    }
+    if (id === 'lowaltitudeops') {
+      copilotDispatch({
+        type: 'ADD_MESSAGE',
+        payload: {
+          id: `low-altitude-welcome-${Date.now()}`,
+          role: 'assistant',
+          content: '量仔在线，已接入城市低空网络，可通过语音快速发起任务调度。',
+          timestamp: Date.now(),
+          type: 'text'
+        }
+      });
     }
   }, [id]);
 
@@ -1014,6 +1447,47 @@ export const ScenarioEntryPage: React.FC = () => {
               </div>
             </div>
           </Modal>
+        </div>
+      ) : id === 'lowaltitudeops' ? (
+        <div className="space-y-6">
+          {/* Sub-module Content */}
+          <div className="min-h-[600px]">
+            {state.lowAltitudeSubModule === 'SITUATION_OVERVIEW' ? (
+              <LowAltitudeSituationOverview />
+            ) : state.lowAltitudeSubModule === 'TASK_CENTER' ? (
+              <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 h-full">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">任务中心</h3>
+                <div className="p-12 border-2 border-dashed border-gray-100 rounded-xl flex flex-col items-center justify-center text-gray-400">
+                  <ClipboardList size={48} className="mb-4 opacity-20" />
+                  <p>任务中心模块内容正在建设中...</p>
+                </div>
+              </div>
+            ) : state.lowAltitudeSubModule === 'EVENT_CENTER' ? (
+              <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 h-full">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">事件中心</h3>
+                <div className="p-12 border-2 border-dashed border-gray-100 rounded-xl flex flex-col items-center justify-center text-gray-400">
+                  <AlertCircle size={48} className="mb-4 opacity-20" />
+                  <p>事件中心模块内容正在建设中...</p>
+                </div>
+              </div>
+            ) : state.lowAltitudeSubModule === 'ALGORITHM_CENTER' ? (
+              <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 h-full">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">算法中心</h3>
+                <div className="p-12 border-2 border-dashed border-gray-100 rounded-xl flex flex-col items-center justify-center text-gray-400">
+                  <BrainCircuit size={48} className="mb-4 opacity-20" />
+                  <p>算法中心模块内容正在建设中...</p>
+                </div>
+              </div>
+            ) : state.lowAltitudeSubModule === 'OPERATIONS_CENTER' ? (
+              <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 h-full">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">运营中心</h3>
+                <div className="p-12 border-2 border-dashed border-gray-100 rounded-xl flex flex-col items-center justify-center text-gray-400">
+                  <Activity size={48} className="mb-4 opacity-20" />
+                  <p>运营中心模块内容正在建设中...</p>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : (
         <>
